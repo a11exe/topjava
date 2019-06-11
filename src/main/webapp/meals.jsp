@@ -15,9 +15,12 @@
     <table class="table table-striped">
         <thead>
         <tr>
+            <th scope="col">id</th>
             <th scope="col">Description</th>
             <th scope="col">Date</th>
             <th scope="col">Calories</th>
+            <th scope="col">edit</th>
+            <th scope="col">delete</th>
         </tr>
         </thead>
         <tbody>
@@ -30,9 +33,12 @@
                         <tr>
                     </c:otherwise>
                 </c:choose>
+                    <td>${meal.getId()}</td>
                     <td>${meal.getDescription()}</td>
                     <td>${meal.getDateTime().toString().replace("T", " ")}</td>
                     <td>${meal.getCalories()}</td>
+                    <td><a href = "<c:url value = "?action=edit&mealId=${meal.getId()}"/>">Edit</a></td>
+                    <td><a href = "<c:url value = "?action=delete&mealId=${meal.getId()}"/>">X</a></td>
                 </tr>
             </c:forEach>
         </tbody>
