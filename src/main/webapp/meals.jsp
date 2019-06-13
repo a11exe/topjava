@@ -25,14 +25,7 @@
         </thead>
         <tbody>
             <c:forEach var="meal" items="${meals}">
-                <c:choose>
-                    <c:when test="${meal.isExcess()}">
-                        <tr class="text-danger">
-                    </c:when>
-                    <c:otherwise>
-                        <tr>
-                    </c:otherwise>
-                </c:choose>
+                <tr class=${meal.isExcess() == true ?  '"text-danger"': '"text"'}>
                     <td>${meal.getId()}</td>
                     <td>${meal.getDescription()}</td>
                     <td>${meal.getDateTime().toString().replace("T", " ")}</td>
@@ -43,6 +36,7 @@
             </c:forEach>
         </tbody>
     </table>
+    <a href="?action=add" class="btn btn-primary btn-lg active" role="button" aria-pressed="true">Add meal</a>
 </div>
 
 </body>
