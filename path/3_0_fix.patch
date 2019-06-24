@@ -1,0 +1,276 @@
+Index: src/main/java/ru/javawebinar/topjava/service/MealServiceImpl.java
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/MealServiceImpl.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/service/MealServiceImpl.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
+@@ -1,9 +0,0 @@
+-package ru.javawebinar.topjava.service;
+-
+-import ru.javawebinar.topjava.repository.MealRepository;
+-
+-public class MealServiceImpl implements MealService {
+-
+-    private MealRepository repository;
+-
+-}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/service/UserServiceImpl.java
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/UserServiceImpl.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/service/UserServiceImpl.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
+@@ -1,53 +0,0 @@
+-package ru.javawebinar.topjava.service;
+-
+-import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.stereotype.Service;
+-import ru.javawebinar.topjava.model.User;
+-import ru.javawebinar.topjava.repository.UserRepository;
+-import ru.javawebinar.topjava.util.exception.NotFoundException;
+-
+-import java.util.List;
+-
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFound;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFoundWithId;
+-
+-@Service
+-public class UserServiceImpl implements UserService {
+-
+-    private final UserRepository repository;
+-
+-    @Autowired
+-    public UserServiceImpl(UserRepository repository) {
+-        this.repository = repository;
+-    }
+-
+-    @Override
+-    public User create(User user) {
+-        return repository.save(user);
+-    }
+-
+-    @Override
+-    public void delete(int id) throws NotFoundException {
+-        checkNotFoundWithId(repository.delete(id), id);
+-    }
+-
+-    @Override
+-    public User get(int id) throws NotFoundException {
+-        return checkNotFoundWithId(repository.get(id), id);
+-    }
+-
+-    @Override
+-    public User getByEmail(String email) throws NotFoundException {
+-        return checkNotFound(repository.getByEmail(email), "email=" + email);
+-    }
+-
+-    @Override
+-    public List<User> getAll() {
+-        return repository.getAll();
+-    }
+-
+-    @Override
+-    public void update(User user) throws NotFoundException {
+-        checkNotFoundWithId(repository.save(user), user.getId());
+-    }
+-}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1560773291475)
+@@ -4,7 +4,7 @@
+ import org.slf4j.LoggerFactory;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+-import ru.javawebinar.topjava.repository.inmemory.InMemoryMealRepositoryImpl;
++import ru.javawebinar.topjava.repository.inmemory.InMemoryMealRepository;
+ import ru.javawebinar.topjava.util.MealsUtil;
+ 
+ import javax.servlet.ServletConfig;
+@@ -25,7 +25,7 @@
+     @Override
+     public void init(ServletConfig config) throws ServletException {
+         super.init(config);
+-        repository = new InMemoryMealRepositoryImpl();
++        repository = new InMemoryMealRepository();
+     }
+ 
+     @Override
+Index: src/main/webapp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/meals.jsp	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/webapp/meals.jsp	(date 1560772828014)
+@@ -12,7 +12,7 @@
+         }
+ 
+         .excess {
+-            color: red;
++            color: blue;
+         }
+     </style>
+ </head>
+Index: src/main/java/ru/javawebinar/topjava/service/MealService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/MealService.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/service/MealService.java	(date 1560981738980)
+@@ -1,4 +1,9 @@
+ package ru.javawebinar.topjava.service;
+ 
+-public interface MealService {
++import ru.javawebinar.topjava.repository.MealRepository;
++
++public class MealService {
++
++    private MealRepository repository;
++
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1560981812616)
+@@ -1,22 +1,47 @@
+ package ru.javawebinar.topjava.service;
+ 
+-
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Service;
+ import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.repository.UserRepository;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import java.util.List;
+ 
+-public interface UserService {
++import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFound;
++import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFoundWithId;
++
++@Service
++public class UserService {
+ 
+-    User create(User user);
++    private final UserRepository repository;
+ 
+-    void delete(int id) throws NotFoundException;
++    @Autowired
++    public UserService(UserRepository repository) {
++        this.repository = repository;
++    }
+ 
+-    User get(int id) throws NotFoundException;
++    public User create(User user) {
++        return repository.save(user);
++    }
+ 
+-    User getByEmail(String email) throws NotFoundException;
++    public void delete(int id) throws NotFoundException {
++        checkNotFoundWithId(repository.delete(id), id);
++    }
+ 
+-    void update(User user);
++    public User get(int id) throws NotFoundException {
++        return checkNotFoundWithId(repository.get(id), id);
++    }
+ 
+-    List<User> getAll();
++    public User getByEmail(String email) throws NotFoundException {
++        return checkNotFound(repository.getByEmail(email), "email=" + email);
++    }
++
++    public List<User> getAll() {
++        return repository.getAll();
++    }
++
++    public void update(User user) throws NotFoundException {
++        checkNotFoundWithId(repository.save(user), user.getId());
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepositoryImpl.java
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepositoryImpl.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(date 1560773291463)
+@@ -9,7 +9,7 @@
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.atomic.AtomicInteger;
+ 
+-public class InMemoryMealRepositoryImpl implements MealRepository {
++public class InMemoryMealRepository implements MealRepository {
+     private Map<Integer, Meal> repository = new ConcurrentHashMap<>();
+     private AtomicInteger counter = new AtomicInteger(0);
+ 
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepositoryImpl.java
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepositoryImpl.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(date 1560773291468)
+@@ -10,8 +10,8 @@
+ import java.util.List;
+ 
+ @Repository
+-public class InMemoryUserRepositoryImpl implements UserRepository {
+-    private static final Logger log = LoggerFactory.getLogger(InMemoryUserRepositoryImpl.class);
++public class InMemoryUserRepository implements UserRepository {
++    private static final Logger log = LoggerFactory.getLogger(InMemoryUserRepository.class);
+ 
+     @Override
+     public boolean delete(int id) {
+Index: src/main/java/ru/javawebinar/topjava/repository/UserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/UserRepository.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/repository/UserRepository.java	(date 1560708875247)
+@@ -5,6 +5,7 @@
+ import java.util.List;
+ 
+ public interface UserRepository {
++    // null if not found, when updated
+     User save(User user);
+ 
+     // false if not found
+Index: src/main/resources/spring/spring-app.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-app.xml	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/resources/spring/spring-app.xml	(date 1560982185437)
+@@ -5,10 +5,10 @@
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+ 
+ <!--
+-    <bean class="ru.javawebinar.topjava.repository.inmemory.InMemoryUserRepositoryImpl" id="inmemoryUserRepository"/>
++    <bean class="ru.javawebinar.topjava.repository.inmemory.InMemoryUserRepository"/>
+ 
+     <bean class="ru.javawebinar.topjava.service.UserServiceImpl">
+-        <constructor-arg name="repository" ref="inmemoryUserRepository"/>
++        <constructor-arg name="repository" ref="inMemoryUserRepository"/>
+     </bean>
+ -->
+ 
+Index: src/main/java/ru/javawebinar/topjava/repository/MealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/MealRepository.java	(revision c5f3b74ca99407c1ef5f81bc9fd524f30f96aa8e)
++++ src/main/java/ru/javawebinar/topjava/repository/MealRepository.java	(date 1560708910502)
+@@ -5,6 +5,7 @@
+ import java.util.Collection;
+ 
+ public interface MealRepository {
++    // null if not found, when updated
+     Meal save(Meal meal);
+ 
+     // false if not found
