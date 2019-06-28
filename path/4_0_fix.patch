@@ -1,0 +1,46 @@
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepositoryImpl.java
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepositoryImpl.java	(revision 3c3223bd49e9b29f384bef068f3d5218659edede)
++++ src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(date 1561384866975)
+@@ -8,7 +8,7 @@
+ import java.util.List;
+ 
+ @Repository
+-public class JdbcMealRepositoryImpl implements MealRepository {
++public class JdbcMealRepository implements MealRepository {
+ 
+     @Override
+     public Meal save(Meal meal, int userId) {
+Index: src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(revision 3c3223bd49e9b29f384bef068f3d5218659edede)
++++ src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(date 1561384892353)
+@@ -16,9 +16,6 @@
+ @Repository
+ public class InMemoryUserRepository extends InMemoryBaseRepository<User> implements UserRepository {
+ 
+-    static final int USER_ID = 1;
+-    static final int ADMIN_ID = 2;
+-
+     public void init() {
+         entryMap.clear();
+         entryMap.put(UserTestData.USER_ID, USER);
+Index: src/main/java/ru/javawebinar/topjava/service/MealService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/MealService.java	(revision 3c3223bd49e9b29f384bef068f3d5218659edede)
++++ src/main/java/ru/javawebinar/topjava/service/MealService.java	(date 1561384866997)
+@@ -36,7 +36,7 @@
+         return getBetweenDateTimes(adjustStartDateTime(startDate), adjustEndDateTime(endDate), userId);
+     }
+ 
+-    public List<Meal> getBetweenDateTimes(LocalDateTime startDateTime, LocalDateTime endDateTime, int userId) {
++    private List<Meal> getBetweenDateTimes(LocalDateTime startDateTime, LocalDateTime endDateTime, int userId) {
+         return repository.getBetween(startDateTime, endDateTime, userId);
+     }
+ 
