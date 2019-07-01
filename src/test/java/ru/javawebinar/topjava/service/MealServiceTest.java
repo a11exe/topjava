@@ -13,6 +13,9 @@ import ru.javawebinar.topjava.util.exception.NotFoundException;
 
 import java.time.LocalDate;
 import java.time.Month;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static ru.javawebinar.topjava.MealTestData.*;
 import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
@@ -32,7 +35,7 @@ public class MealServiceTest {
     @Test
     public void delete() throws Exception {
         service.delete(MEAL1_ID, USER_ID);
-        assertMatch(service.getAll(USER_ID), MEAL6, MEAL5, MEAL4, MEAL3, MEAL2);
+        assertMatchIgnoringFields(service.getAll(USER_ID), Arrays.asList(MEAL6, MEAL5, MEAL4, MEAL3, MEAL2), "user");
     }
 
     @Test(expected = NotFoundException.class)
@@ -50,14 +53,14 @@ public class MealServiceTest {
         Meal newMeal = getCreated();
         Meal created = service.create(newMeal, USER_ID);
         newMeal.setId(created.getId());
-        assertMatch(newMeal, created);
-        assertMatch(service.getAll(USER_ID), newMeal, MEAL6, MEAL5, MEAL4, MEAL3, MEAL2, MEAL1);
+        assertMatchIgnoringFields(newMeal, created, "user");
+        assertMatchIgnoringFields(service.getAll(USER_ID), Arrays.asList(newMeal, MEAL6, MEAL5, MEAL4, MEAL3, MEAL2, MEAL1), "user");
     }
 
     @Test
     public void get() throws Exception {
         Meal actual = service.get(ADMIN_MEAL_ID, ADMIN_ID);
-        assertMatch(actual, ADMIN_MEAL1);
+        assertMatchIgnoringFields(actual, ADMIN_MEAL1, "user");
     }
 
     @Test(expected = NotFoundException.class)
@@ -74,7 +77,7 @@ public class MealServiceTest {
     public void update() throws Exception {
         Meal updated = getUpdated();
         service.update(updated, USER_ID);
-        assertMatch(service.get(MEAL1_ID, USER_ID), updated);
+        assertMatchIgnoringFields(service.get(MEAL1_ID, USER_ID), updated, "user");
     }
 
     @Test(expected = NotFoundException.class)
@@ -84,13 +87,13 @@ public class MealServiceTest {
 
     @Test
     public void getAll() throws Exception {
-        assertMatch(service.getAll(USER_ID), MEALS);
+        assertMatchIgnoringFields(service.getAll(USER_ID), MEALS, "user");
     }
 
     @Test
     public void getBetween() throws Exception {
-        assertMatch(service.getBetweenDates(
+        assertMatchIgnoringFields(service.getBetweenDates(
                 LocalDate.of(2015, Month.MAY, 30),
-                LocalDate.of(2015, Month.MAY, 30), USER_ID), MEAL3, MEAL2, MEAL1);
+                LocalDate.of(2015, Month.MAY, 30), USER_ID), Arrays.asList(MEAL3, MEAL2, MEAL1) , "user");
     }
 }

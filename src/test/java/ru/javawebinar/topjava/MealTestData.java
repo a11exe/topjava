@@ -5,6 +5,7 @@ import ru.javawebinar.topjava.model.Meal;
 import java.time.Month;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 import static java.time.LocalDateTime.of;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,11 +38,19 @@ public class MealTestData {
         assertThat(actual).isEqualToComparingFieldByField(expected);
     }
 
+    public static void assertMatchIgnoringFields(Meal actual, Meal expected, String... ingoringFileds) {
+        assertThat(actual).isEqualToIgnoringGivenFields(expected, ingoringFileds);
+    }
+
     public static void assertMatch(Iterable<Meal> actual, Meal... expected) {
         assertMatch(actual, Arrays.asList(expected));
     }
 
     public static void assertMatch(Iterable<Meal> actual, Iterable<Meal> expected) {
         assertThat(actual).usingFieldByFieldElementComparator().isEqualTo(expected);
+    }
+
+    public static void assertMatchIgnoringFields(Iterable<Meal> actual, Iterable<Meal> expected, String... ingoringFileds) {
+        assertThat(actual).usingElementComparatorIgnoringFields(ingoringFileds).containsOnly(StreamSupport.stream(expected.spliterator(), false).toArray(Meal[]::new));
     }
 }
