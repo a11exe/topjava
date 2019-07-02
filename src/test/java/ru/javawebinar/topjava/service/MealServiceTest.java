@@ -1,7 +1,14 @@
 package ru.javawebinar.topjava.service;
 
+import org.junit.AfterClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
@@ -32,6 +39,44 @@ public class MealServiceTest {
     @Autowired
     private MealService service;
 
+    private static List<String> testLog = new ArrayList<>();
+
+    @AfterClass
+    public static void afterClass() {
+        testLog.forEach(s -> System.out.println(s));
+    }
+
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
+    @Rule
+    public TestWatcher watcher = new TestWatcher() {
+
+        private long start;
+
+        @Override
+        protected void starting(Description description) {
+            System.out.println("starting " + description.getMethodName());
+            start = System.currentTimeMillis();
+        }
+
+        @Override
+        protected void finished(Description description) {
+            System.out.println("finished");
+            // Get elapsed time in seconds
+            long elapsedTimeMillis = System.currentTimeMillis()-start;
+            float elapsedTimeSec = elapsedTimeMillis/1000F;
+
+            // Get elapsed time in minutes
+            float elapsedTimeMin = elapsedTimeMillis/(60*1000F);
+            String testInfo = String.format("test %s time %s min. %s sec.",  description.getMethodName(), elapsedTimeMin, elapsedTimeSec);
+            testLog.add(testInfo);
+            log.info(testInfo);
+        }
+    };
+
     @Test
     public void delete() throws Exception {
         service.delete(MEAL1_ID, USER_ID);
@@ -43,8 +88,10 @@ public class MealServiceTest {
         service.delete(1, USER_ID);
     }
 
-    @Test(expected = NotFoundException.class)
+    @Test
     public void deleteNotOwn() throws Exception {
+        thrown.expect(NotFoundException.class);
+        thrown.expectMessage("Not found entity with id=100002");
         service.delete(MEAL1_ID, ADMIN_ID);
     }
 
