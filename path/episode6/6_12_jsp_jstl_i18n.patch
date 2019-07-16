@@ -1,0 +1,235 @@
+Index: src/main/webapp/fragments/footer.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/fragments/footer.jsp	(date 1562795983708)
++++ src/main/webapp/fragments/footer.jsp	(date 1562795983708)
+@@ -0,0 +1,5 @@
++<%@page contentType="text/html" pageEncoding="UTF-8" %>
++<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++<fmt:setBundle basename="messages.app"/>
++<hr>
++<footer><fmt:message key="app.footer"/></footer>
+\ No newline at end of file
+Index: src/main/webapp/fragments/bodyHeader.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/fragments/bodyHeader.jsp	(date 1562797729943)
++++ src/main/webapp/fragments/bodyHeader.jsp	(date 1562797729943)
+@@ -0,0 +1,5 @@
++<%@page contentType="text/html" pageEncoding="UTF-8" %>
++<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++
++<fmt:setBundle basename="messages.app"/>
++<header><a href="meals"><fmt:message key="app.title"/></a> | <a href="users"><fmt:message key="user.title"/></a> | <a href="index.jsp"><fmt:message key="app.home"/></a></header>
+\ No newline at end of file
+Index: src/main/webapp/index.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/index.jsp	(date 1562797832053)
++++ src/main/webapp/index.jsp	(date 1562797832053)
+@@ -0,0 +1,23 @@
++<%@ page contentType="text/html;charset=UTF-8" language="java" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++
++<fmt:setBundle basename="messages.app"/>
++
++<html>
++<jsp:include page="fragments/headTag.jsp"/>
++<body>
++<jsp:include page="fragments/bodyHeader.jsp"/>
++<br>
++<section>
++    <form method="post" action="users">
++        <fmt:message key="app.login"/>: <select name="userId">
++        <option value="100000" selected>User</option>
++        <option value="100001">Admin</option>
++    </select>
++        <button type="submit"><fmt:message key="common.select"/></button>
++    </form>
++</section>
++<jsp:include page="fragments/footer.jsp"/>
++</body>
++</html>
+\ No newline at end of file
+Index: src/main/webapp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/fragments/headTag.jsp	(date 1562795983731)
++++ src/main/webapp/fragments/headTag.jsp	(date 1562795983731)
+@@ -0,0 +1,10 @@
++<%@page contentType="text/html" pageEncoding="UTF-8" %>
++<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jstl/core" %>
++<fmt:setBundle basename="messages.app"/>
++
++<head>
++    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
++    <title><fmt:message key="app.title"/></title>
++    <link rel="stylesheet" href="css/style.css">
++</head>
+\ No newline at end of file
+Index: src/main/resources/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/messages/app.properties	(date 1562795969454)
++++ src/main/resources/messages/app.properties	(date 1562795969454)
+@@ -0,0 +1,12 @@
++app.title=Calories management
++app.home=Home
++app.footer=Internship <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> application
++app.login=Login as
++user.title=Users
++user.name=Name
++user.email=Email
++user.roles=Roles
++user.active=Active
++user.registered=Registered
++meal.title=Meals
++common.select=Select
+\ No newline at end of file
+Index: src/main/resources/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/messages/app_ru.properties	(date 1562795969461)
++++ src/main/resources/messages/app_ru.properties	(date 1562795969461)
+@@ -0,0 +1,12 @@
++app.title=Подсчет калорий
++app.home=Главная
++app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
++app.login=Зайти как
++user.title=Пользователи
++user.name=Имя
++user.email=Почта
++user.roles=Роли
++user.active=Активный
++user.registered=Зарегистрирован
++meal.title=Моя еда
++common.select=Выбрать
+\ No newline at end of file
+Index: src/main/webapp/index.html
+===================================================================
+--- src/main/webapp/index.html	(date 1562795964000)
++++ src/main/webapp/index.html	(date 1562795964000)
+@@ -1,18 +0,0 @@
+-<html>
+-<head>
+-    <meta charset="UTF-8">
+-    <title>Java Enterprise (Topjava)</title>
+-</head>
+-<body>
+-<h3>Проект <a href="https://github.com/JavaWebinar/topjava" target="_blank">Java Enterprise (Topjava)</a></h3>
+-<hr>
+-<form method="post" action="users">
+-    <b>Meals of&nbsp;</b>
+-    <select name="userId">
+-        <option value="100000">User</option>
+-        <option value="100001">Admin</option>
+-    </select>
+-    <button type="submit">Select</button>
+-</form>
+-</body>
+-</html>
+Index: src/main/webapp/css/style.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/css/style.css	(date 1562795964000)
++++ src/main/webapp/css/style.css	(date 1562796102364)
+@@ -22,3 +22,11 @@
+ tr[data-mealExcess="true"] {
+     color: blue;
+ }
++
++header, footer {
++    background: none repeat scroll 0 0 #A6C9E2;
++    color: #2E6E9E;
++    font-size: 20px;
++    padding: 5px 20px;
++    margin: 6px 0;
++}
+\ No newline at end of file
+Index: src/main/webapp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/users.jsp	(date 1562795964000)
++++ src/main/webapp/users.jsp	(date 1562796208569)
+@@ -1,11 +1,40 @@
+ <%@ page contentType="text/html;charset=UTF-8" language="java" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++
++<fmt:setBundle basename="messages.app"/>
++
+ <html>
+-<head>
+-    <title>Users</title>
+-</head>
++<jsp:include page="fragments/headTag.jsp"/>
+ <body>
+-<h3><a href="index.html">Home</a></h3>
+-<hr>
+-<h2>Users</h2>
++<jsp:include page="fragments/bodyHeader.jsp"/>
++
++<section>
++    <h3><fmt:message key="user.title"/></h3>
++
++    <table border="1" cellpadding="8" cellspacing="0">
++        <thead>
++        <tr>
++            <th><fmt:message key="user.name"/></th>
++            <th><fmt:message key="user.email"/></th>
++            <th><fmt:message key="user.roles"/></th>
++            <th><fmt:message key="user.active"/></th>
++            <th><fmt:message key="user.registered"/></th>
++        </tr>
++        </thead>
++        <c:forEach items="${users}" var="user">
++            <jsp:useBean id="user" scope="page" type="ru.javawebinar.topjava.model.User"/>
++            <tr>
++                <td><c:out value="${user.name}"/></td>
++                <td><a href="mailto:${user.email}">${user.email}</a></td>
++                <td>${user.roles}</td>
++                <td><%=user.isEnabled()%>
++                </td>
++                <td><fmt:formatDate value="${user.registered}" pattern="dd-MM-yyyy"/></td>
++            </tr>
++        </c:forEach>
++    </table>
++</section>
++<jsp:include page="fragments/footer.jsp"/>
+ </body>
+ </html>
+\ No newline at end of file
+Index: src/main/webapp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/meals.jsp	(date 1562795964000)
++++ src/main/webapp/meals.jsp	(date 1562797220603)
+@@ -9,7 +9,7 @@
+ </head>
+ <body>
+ <section>
+-    <h3><a href="index.html">Home</a></h3>
++    <h3><a href="index.jsp">Home</a></h3>
+     <hr/>
+     <h2>Meals</h2>
+     <form method="get" action="meals">

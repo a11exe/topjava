@@ -1,0 +1,74 @@
+Index: src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(revision 90db1242ea07de0bd40ea28798de53f37c3d0474)
++++ src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(date 1562801819154)
+@@ -101,7 +101,7 @@
+     @Test
+     public void getNotFound() throws Exception {
+         thrown.expect(NotFoundException.class);
+-        service.get(MEAL1_ID, ADMIN_ID);
++        service.get(1, ADMIN_ID);
+     }
+ 
+     @Test
+Index: src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(revision 90db1242ea07de0bd40ea28798de53f37c3d0474)
++++ src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(date 1562801819155)
+@@ -47,6 +47,7 @@
+         User newUser = new User(null, "New", "new@gmail.com", "newPass", 1555, false, new Date(), Collections.singleton(Role.ROLE_USER));
+         User created = service.create(newUser);
+         newUser.setId(created.getId());
++        assertMatch(created, newUser);
+         assertMatch(service.getAll(), ADMIN, newUser, USER);
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision 90db1242ea07de0bd40ea28798de53f37c3d0474)
++++ src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1562801881725)
+@@ -7,7 +7,6 @@
+ import org.springframework.util.Assert;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
+-import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import java.util.List;
+ 
+@@ -31,15 +30,15 @@
+     }
+ 
+     @CacheEvict(value = "users", allEntries = true)
+-    public void delete(int id) throws NotFoundException {
++    public void delete(int id) {
+         checkNotFoundWithId(repository.delete(id), id);
+     }
+ 
+-    public User get(int id) throws NotFoundException {
++    public User get(int id) {
+         return checkNotFoundWithId(repository.get(id), id);
+     }
+ 
+-    public User getByEmail(String email) throws NotFoundException {
++    public User getByEmail(String email) {
+         Assert.notNull(email, "email must not be null");
+         return checkNotFound(repository.getByEmail(email), "email=" + email);
+     }
+@@ -50,7 +49,7 @@
+     }
+ 
+     @CacheEvict(value = "users", allEntries = true)
+-    public void update(User user) throws NotFoundException {
++    public void update(User user) {
+         Assert.notNull(user, "user must not be null");
+         checkNotFoundWithId(repository.save(user), user.getId());
+     }

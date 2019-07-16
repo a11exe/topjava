@@ -1,0 +1,34 @@
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision a7c401bcbf60c055d0618f6de5379760fa80aa07)
++++ src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1563015104836)
+@@ -54,7 +54,7 @@
+         checkNotFoundWithId(repository.save(user), user.getId());
+     }
+ 
+-    public User getWithMeals(int id) throws NotFoundException {
++    public User getWithMeals(int id) {
+         return checkNotFoundWithId(repository.getWithMeals(id), id);
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/service/MealService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/MealService.java	(revision a7c401bcbf60c055d0618f6de5379760fa80aa07)
++++ src/main/java/ru/javawebinar/topjava/service/MealService.java	(date 1563015104828)
+@@ -57,7 +57,7 @@
+         return repository.save(meal, userId);
+     }
+ 
+-    public Meal getWithUser(int id, int userId) throws NotFoundException {
++    public Meal getWithUser(int id, int userId) {
+         return checkNotFoundWithId(repository.getWithUser(id, userId), id);
+     }
+ }
+\ No newline at end of file

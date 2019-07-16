@@ -1,0 +1,61 @@
+Index: src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java	(date 1562794248000)
++++ src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java	(date 1562794455641)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.repository.datajpa;
+ 
++import org.springframework.data.jpa.repository.EntityGraph;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ import org.springframework.data.jpa.repository.Modifying;
+ import org.springframework.data.jpa.repository.Query;
+@@ -11,12 +12,12 @@
+ public interface CrudUserRepository extends JpaRepository<User, Integer> {
+     @Transactional
+     @Modifying
+-//    @Query(name = User.DELETE)
+     @Query("DELETE FROM User u WHERE u.id=:id")
+     int delete(@Param("id") int id);
+ 
+     User getByEmail(String email);
+ 
+-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.meals WHERE u.id = ?1")
++    @EntityGraph(attributePaths = {"meals", "roles"})
++    @Query("SELECT u FROM User u WHERE u.id=?1")
+     User getWithMeals(int id);
+ }
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/User.java	(date 1562794248000)
++++ src/main/java/ru/javawebinar/topjava/model/User.java	(date 1562794272051)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.model;
+ 
++import org.hibernate.annotations.BatchSize;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
+ 
+@@ -15,7 +16,7 @@
+ @NamedQueries({
+         @NamedQuery(name = User.DELETE, query = "DELETE FROM User u WHERE u.id=:id"),
+         @NamedQuery(name = User.BY_EMAIL, query = "SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email=?1"),
+-        @NamedQuery(name = User.ALL_SORTED, query = "SELECT u FROM User u LEFT JOIN FETCH u.roles ORDER BY u.name, u.email"),
++        @NamedQuery(name = User.ALL_SORTED, query = "SELECT u FROM User u ORDER BY u.name, u.email"),
+ })
+ @Entity
+ @Table(name = "users", uniqueConstraints = {@UniqueConstraint(columnNames = "email", name = "users_unique_email_idx")})
+@@ -47,6 +48,8 @@
+     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+     @Column(name = "role")
+     @ElementCollection(fetch = FetchType.EAGER)
++//    @Fetch(FetchMode.SUBSELECT)
++    @BatchSize(size = 200)
+     private Set<Role> roles;
+ 
+     @Column(name = "calories_per_day", nullable = false, columnDefinition = "int default 2000")
