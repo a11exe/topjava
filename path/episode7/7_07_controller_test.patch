@@ -1,0 +1,173 @@
+Index: src/test/java/ru/javawebinar/topjava/AllActiveProfileResolver.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/AllActiveProfileResolver.java	(date 1563988870337)
++++ src/test/java/ru/javawebinar/topjava/AllActiveProfileResolver.java	(date 1563988870337)
+@@ -0,0 +1,12 @@
++package ru.javawebinar.topjava;
++
++import org.springframework.test.context.ActiveProfilesResolver;
++
++//http://stackoverflow.com/questions/23871255/spring-profiles-simple-example-of-activeprofilesresolver
++public class AllActiveProfileResolver implements ActiveProfilesResolver {
++
++    @Override
++    public String[] resolve(Class<?> aClass) {
++        return new String[]{Profiles.REPOSITORY_IMPLEMENTATION, Profiles.getActiveDbProfile()};
++    }
++}
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1563988870330)
++++ src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1563988870330)
+@@ -0,0 +1,29 @@
++package ru.javawebinar.topjava.web;
++
++import org.junit.Test;
++
++import static org.hamcrest.Matchers.*;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
++import static ru.javawebinar.topjava.UserTestData.USER;
++import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
++
++public class RootControllerTest extends AbstractControllerTest {
++
++    @Test
++    public void testUsers() throws Exception {
++        mockMvc.perform(get("/users"))
++                .andDo(print())
++                .andExpect(status().isOk())
++                .andExpect(view().name("users"))
++                .andExpect(forwardedUrl("/WEB-INF/jsp/users.jsp"))
++                .andExpect(model().attribute("users", hasSize(2)))
++                .andExpect(model().attribute("users", hasItem(
++                        allOf(
++                                hasProperty("id", is(START_SEQ)),
++                                hasProperty("name", is(USER.getName()))
++                        )
++                )));
++    }
++}
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1563988870318)
++++ src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1563988870318)
+@@ -0,0 +1,69 @@
++package ru.javawebinar.topjava.web;
++
++import org.junit.Before;
++import org.junit.runner.RunWith;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.cache.CacheManager;
++import org.springframework.test.context.ActiveProfiles;
++import org.springframework.test.context.ContextConfiguration;
++import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
++import org.springframework.test.context.web.WebAppConfiguration;
++import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.test.web.servlet.setup.MockMvcBuilders;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.web.context.WebApplicationContext;
++import org.springframework.web.filter.CharacterEncodingFilter;
++import ru.javawebinar.topjava.AllActiveProfileResolver;
++import ru.javawebinar.topjava.repository.JpaUtil;
++import ru.javawebinar.topjava.service.UserService;
++
++import javax.annotation.PostConstruct;
++
++@ContextConfiguration({
++        "classpath:spring/spring-app.xml",
++        "classpath:spring/spring-mvc.xml",
++        "classpath:spring/spring-db.xml"
++})
++@WebAppConfiguration
++@RunWith(SpringJUnit4ClassRunner.class)
++@Transactional
++@ActiveProfiles(resolver = AllActiveProfileResolver.class)
++abstract public class AbstractControllerTest {
++
++    private static final CharacterEncodingFilter CHARACTER_ENCODING_FILTER = new CharacterEncodingFilter();
++
++    static {
++        CHARACTER_ENCODING_FILTER.setEncoding("UTF-8");
++        CHARACTER_ENCODING_FILTER.setForceEncoding(true);
++    }
++
++    protected MockMvc mockMvc;
++
++    @Autowired
++    private CacheManager cacheManager;
++
++    @Autowired(required = false)
++    private JpaUtil jpaUtil;
++
++    @Autowired
++    protected UserService userService;
++
++    @Autowired
++    private WebApplicationContext webApplicationContext;
++
++    @PostConstruct
++    private void postConstruct() {
++        mockMvc = MockMvcBuilders
++                .webAppContextSetup(webApplicationContext)
++                .addFilter(CHARACTER_ENCODING_FILTER)
++                .build();
++    }
++
++    @Before
++    public void setUp() {
++        cacheManager.getCache("users").clear();
++        if (jpaUtil != null) {
++            jpaUtil.clear2ndLevelHibernateCache();
++        }
++    }
++}
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1563988857000)
++++ pom.xml	(date 1563988870346)
+@@ -28,6 +28,7 @@
+         <postgresql.version>42.2.6</postgresql.version>
+         <!--    Tests  -->
+         <junit.version>4.12</junit.version>
++        <hamcrest.version>1.3</hamcrest.version>
+ 
+         <!-- Hibernate -->
+         <hibernate.version>5.4.3.Final</hibernate.version>
+@@ -206,8 +207,21 @@
+             <groupId>junit</groupId>
+             <artifactId>junit</artifactId>
+             <version>${junit.version}</version>
++            <scope>test</scope>
++            <exclusions>
++                <exclusion>
++                    <artifactId>hamcrest-core</artifactId>
++                    <groupId>org.hamcrest</groupId>
++                </exclusion>
++            </exclusions>
++        </dependency>
++        <dependency>
++            <groupId>org.hamcrest</groupId>
++            <artifactId>hamcrest-all</artifactId>
++            <version>${hamcrest.version}</version>
+             <scope>test</scope>
+         </dependency>
++
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-test</artifactId>

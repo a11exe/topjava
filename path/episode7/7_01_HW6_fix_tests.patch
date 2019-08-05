@@ -1,0 +1,240 @@
+Index: src/test/java/ru/javawebinar/topjava/SpringMain.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/SpringMain.java	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/java/ru/javawebinar/topjava/SpringMain.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -18,7 +18,7 @@
+         // java 7 automatic resource management
+         try (GenericXmlApplicationContext appCtx = new GenericXmlApplicationContext()) {
+             appCtx.getEnvironment().setActiveProfiles(Profiles.getActiveDbProfile(), Profiles.REPOSITORY_IMPLEMENTATION);
+-            appCtx.load("spring/spring-app.xml", "spring/spring-db.xml");
++            appCtx.load("spring/spring-app.xml", "spring/inmemory.xml");
+             appCtx.refresh();
+ 
+             System.out.println("Bean definition names: " + Arrays.toString(appCtx.getBeanDefinitionNames()));
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractJpaUserServiceTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractJpaUserServiceTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -0,0 +1,34 @@
++package ru.javawebinar.topjava.service;
++
++import org.junit.Before;
++import org.junit.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import ru.javawebinar.topjava.model.Role;
++import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.repository.JpaUtil;
++
++import javax.validation.ConstraintViolationException;
++import java.util.Collections;
++import java.util.Date;
++
++abstract public class AbstractJpaUserServiceTest extends AbstractUserServiceTest {
++
++    @Autowired
++    private JpaUtil jpaUtil;
++
++    @Before
++    @Override
++    public void setUp() throws Exception {
++        super.setUp();
++        jpaUtil.clear2ndLevelHibernateCache();
++    }
++
++    @Test
++    public void testValidation() throws Exception {
++        validateRootCause(() -> service.create(new User(null, "  ", "mail@yandex.ru", "password", Role.ROLE_USER)), ConstraintViolationException.class);
++        validateRootCause(() -> service.create(new User(null, "User", "  ", "password", Role.ROLE_USER)), ConstraintViolationException.class);
++        validateRootCause(() -> service.create(new User(null, "User", "mail@yandex.ru", "  ", Role.ROLE_USER)), ConstraintViolationException.class);
++        validateRootCause(() -> service.create(new User(null, "User", "mail@yandex.ru", "password", 9, true, new Date(), Collections.emptySet())), ConstraintViolationException.class);
++        validateRootCause(() -> service.create(new User(null, "User", "mail@yandex.ru", "password", 10001, true, new Date(), Collections.emptySet())), ConstraintViolationException.class);
++    }
++}
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.service;
+ 
++import org.junit.Assume;
+ import org.junit.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import ru.javawebinar.topjava.model.Meal;
+@@ -92,6 +93,7 @@
+ 
+     @Test
+     public void testValidation() throws Exception {
++        Assume.assumeTrue(isJpaBased());
+         validateRootCause(() -> service.create(new Meal(null, of(2015, Month.JUNE, 1, 18, 0), "  ", 300), USER_ID), ConstraintViolationException.class);
+         validateRootCause(() -> service.create(new Meal(null, null, "Description", 300), USER_ID), ConstraintViolationException.class);
+         validateRootCause(() -> service.create(new Meal(null, of(2015, Month.JUNE, 1, 18, 0), "Description", 9), USER_ID), ConstraintViolationException.class);
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -13,6 +13,9 @@
+ import org.springframework.test.context.jdbc.SqlConfig;
+ import org.springframework.test.context.junit4.SpringRunner;
+ import ru.javawebinar.topjava.ActiveDbProfileResolver;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.core.env.Environment;
++import ru.javawebinar.topjava.Profiles;
+ import ru.javawebinar.topjava.TimingRules;
+ 
+ import static org.hamcrest.CoreMatchers.instanceOf;
+@@ -32,9 +35,17 @@
+     @Rule
+     public Stopwatch stopwatch = TimingRules.STOPWATCH;
+ 
++    @Autowired
++    public Environment env;
++
+     @Rule
+     public ExpectedException thrown = ExpectedException.none();
+ 
++    public boolean isJpaBased() {
++//        return Arrays.stream(env.getActiveProfiles()).noneMatch(Profiles.JDBC::equals);
++        return env.acceptsProfiles(org.springframework.core.env.Profiles.of(Profiles.JPA, Profiles.DATAJPA));
++    }
++
+     //  Check root cause in JUnit: https://github.com/junit-team/junit4/pull/778
+     public <T extends Throwable> void validateRootCause(Runnable runnable, Class<T> exceptionClass) {
+         try {
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -7,10 +7,8 @@
+ import org.springframework.dao.DataAccessException;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+-import ru.javawebinar.topjava.repository.JpaUtil;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+-import javax.validation.ConstraintViolationException;
+ import java.util.Collections;
+ import java.util.Date;
+ import java.util.List;
+@@ -25,13 +23,9 @@
+     @Autowired
+     private CacheManager cacheManager;
+ 
+-    @Autowired
+-    protected JpaUtil jpaUtil;
+-
+     @Before
+     public void setUp() throws Exception {
+         cacheManager.getCache("users").clear();
+-        jpaUtil.clear2ndLevelHibernateCache();
+     }
+ 
+     @Test
+@@ -90,13 +84,4 @@
+         List<User> all = service.getAll();
+         assertMatch(all, ADMIN, USER);
+     }
+-
+-    @Test
+-    public void testValidation() throws Exception {
+-        validateRootCause(() -> service.create(new User(null, "  ", "mail@yandex.ru", "password", Role.ROLE_USER)), ConstraintViolationException.class);
+-        validateRootCause(() -> service.create(new User(null, "User", "  ", "password", Role.ROLE_USER)), ConstraintViolationException.class);
+-        validateRootCause(() -> service.create(new User(null, "User", "mail@yandex.ru", "  ", Role.ROLE_USER)), ConstraintViolationException.class);
+-        validateRootCause(() -> service.create(new User(null, "User", "mail@yandex.ru", "password", 9, true, new Date(), Collections.emptySet())), ConstraintViolationException.class);
+-        validateRootCause(() -> service.create(new User(null, "User", "mail@yandex.ru", "password", 10001, true, new Date(), Collections.emptySet())), ConstraintViolationException.class);
+-    }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -4,14 +4,14 @@
+ import org.springframework.test.context.ActiveProfiles;
+ import ru.javawebinar.topjava.MealTestData;
+ import ru.javawebinar.topjava.model.User;
+-import ru.javawebinar.topjava.service.AbstractUserServiceTest;
++import ru.javawebinar.topjava.service.AbstractJpaUserServiceTest;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import static ru.javawebinar.topjava.Profiles.DATAJPA;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ @ActiveProfiles(DATAJPA)
+-public class DataJpaUserServiceTest extends AbstractUserServiceTest {
++public class DataJpaUserServiceTest extends AbstractJpaUserServiceTest {
+     @Test
+     public void testGetWithMeals() throws Exception {
+         User user = service.getWithMeals(USER_ID);
+Index: src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -1,10 +1,10 @@
+ package ru.javawebinar.topjava.service.jpa;
+ 
+ import org.springframework.test.context.ActiveProfiles;
+-import ru.javawebinar.topjava.service.AbstractUserServiceTest;
++import ru.javawebinar.topjava.service.AbstractJpaUserServiceTest;
+ 
+ import static ru.javawebinar.topjava.Profiles.JPA;
+ 
+ @ActiveProfiles(JPA)
+-public class JpaUserServiceTest extends AbstractUserServiceTest {
++public class JpaUserServiceTest extends AbstractJpaUserServiceTest {
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -26,7 +26,9 @@
+ 
+     @AfterClass
+     public static void afterClass() {
+-        appCtx.close();
++//        May cause during JUnit "Cache is not alive (STATUS_SHUTDOWN)" as JUnit share Spring context for speed
++//        http://stackoverflow.com/questions/16281802/ehcache-shutdown-causing-an-exception-while-running-test-suite
++//        appCtx.close();
+     }
+ 
+     @Before
+Index: src/test/resources/spring/inmemory.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/resources/spring/inmemory.xml	(revision e68079d8d18dde12b6a0db10b421196578d02e61)
++++ src/test/resources/spring/inmemory.xml	(revision 42312204e3ce63f0232a2f61bf7e2802b0feb0ff)
+@@ -4,4 +4,5 @@
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+ 
+     <context:component-scan base-package="ru.javawebinar.topjava.**.repository.inmemory"/>
++    <context:component-scan base-package="ru.javawebinar.topjava.**.web"/>
+ </beans>
+\ No newline at end of file

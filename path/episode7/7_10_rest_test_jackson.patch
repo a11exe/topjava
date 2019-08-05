@@ -1,0 +1,111 @@
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1563995693916)
++++ src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1563995693916)
+@@ -0,0 +1,25 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.http.MediaType;
++import ru.javawebinar.topjava.web.AbstractControllerTest;
++
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
++
++class AdminRestControllerTest extends AbstractControllerTest {
++
++    private static final String REST_URL = AdminRestController.REST_URL + '/';
++
++    @Test
++    void testGet() throws Exception {
++        mockMvc.perform(get(REST_URL + ADMIN_ID))
++                .andExpect(status().isOk())
++                .andDo(print())
++                // https://jira.spring.io/browse/SPR-14472
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/User.java	(date 1563995595000)
++++ src/main/java/ru/javawebinar/topjava/model/User.java	(date 1563996157057)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.model;
+ 
++import com.fasterxml.jackson.annotation.JsonIgnore;
+ import org.hibernate.annotations.BatchSize;
+ import org.hibernate.annotations.Cache;
+ import org.hibernate.annotations.CacheConcurrencyStrategy;
+@@ -62,6 +63,7 @@
+ 
+     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
+     @OrderBy("dateTime DESC")
++    @JsonIgnore
+     protected List<Meal> meals;
+ 
+     public User() {
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1563995595000)
++++ pom.xml	(date 1563996181767)
+@@ -18,6 +18,7 @@
+ 
+         <spring.version>5.1.7.RELEASE</spring.version>
+         <spring-data-jpa.version>2.1.9.RELEASE</spring-data-jpa.version>
++        <jackson-json.version>2.9.9</jackson-json.version>
+         <tomcat.version>9.0.21</tomcat.version>
+ 
+         <!-- Logging -->
+@@ -202,6 +203,13 @@
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-webmvc</artifactId>
+         </dependency>
++
++        <!--JSON-->
++        <dependency>
++            <groupId>com.fasterxml.jackson.core</groupId>
++            <artifactId>jackson-databind</artifactId>
++            <version>${jackson-json.version}</version>
++        </dependency>
+ 
+         <!--Test-->
+         <dependency>
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1563995595000)
++++ src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1563996157057)
+@@ -1,13 +1,18 @@
+ package ru.javawebinar.topjava.model;
+ 
++import com.fasterxml.jackson.annotation.JsonAutoDetect;
+ import org.hibernate.Hibernate;
+ import org.springframework.data.domain.Persistable;
+ 
+ import javax.persistence.*;
+ 
++import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.ANY;
++import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE;
++
+ @MappedSuperclass
+ // http://stackoverflow.com/questions/594597/hibernate-annotations-which-is-better-field-or-property-access
+ @Access(AccessType.FIELD)
++@JsonAutoDetect(fieldVisibility = ANY, getterVisibility = NONE, isGetterVisibility = NONE, setterVisibility = NONE)
+ public abstract class AbstractBaseEntity implements Persistable<Integer> {
+     public static final int START_SEQ = 100000;
+ 

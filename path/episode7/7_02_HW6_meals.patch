@@ -1,0 +1,660 @@
+Index: src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java	(date 1563986118144)
++++ src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java	(date 1563986118144)
+@@ -0,0 +1,70 @@
++package ru.javawebinar.topjava.web.meal;
++
++import org.springframework.stereotype.Controller;
++import org.springframework.ui.Model;
++import org.springframework.web.bind.annotation.GetMapping;
++import org.springframework.web.bind.annotation.PostMapping;
++import org.springframework.web.bind.annotation.RequestMapping;
++import ru.javawebinar.topjava.model.Meal;
++
++import javax.servlet.http.HttpServletRequest;
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.time.LocalTime;
++import java.time.temporal.ChronoUnit;
++import java.util.Objects;
++
++import static ru.javawebinar.topjava.util.DateTimeUtil.parseLocalDate;
++import static ru.javawebinar.topjava.util.DateTimeUtil.parseLocalTime;
++
++@Controller
++@RequestMapping(value = "/meals")
++public class JspMealController extends AbstractMealController {
++
++    @GetMapping("/delete")
++    public String delete(HttpServletRequest request) {
++        super.delete(getId(request));
++        return "redirect:meals";
++    }
++
++    @GetMapping("/update")
++    public String update(HttpServletRequest request, Model model) {
++        model.addAttribute("meal", super.get(getId(request)));
++        return "mealForm";
++    }
++
++    @GetMapping("/create")
++    public String create(Model model) {
++        model.addAttribute("meal", new Meal(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), "", 1000));
++        return "mealForm";
++    }
++
++    @PostMapping
++    public String updateOrCreate(HttpServletRequest request) {
++        Meal meal = new Meal(LocalDateTime.parse(request.getParameter("dateTime")),
++                request.getParameter("description"),
++                Integer.valueOf(request.getParameter("calories")));
++
++        if (request.getParameter("id").isEmpty()) {
++            super.create(meal);
++        } else {
++            super.update(meal, getId(request));
++        }
++        return "redirect:meals";
++    }
++
++    @PostMapping("/filter")
++    public String getBetween(HttpServletRequest request, Model model) {
++        LocalDate startDate = parseLocalDate(request.getParameter("startDate"));
++        LocalDate endDate = parseLocalDate(request.getParameter("endDate"));
++        LocalTime startTime = parseLocalTime(request.getParameter("startTime"));
++        LocalTime endTime = parseLocalTime(request.getParameter("endTime"));
++        model.addAttribute("meals", super.getBetween(startDate, startTime, endDate, endTime));
++        return "meals";
++    }
++
++    private int getId(HttpServletRequest request) {
++        String paramId = Objects.requireNonNull(request.getParameter("id"));
++        return Integer.valueOf(paramId);
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java	(date 1563986118136)
++++ src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java	(date 1563986118136)
+@@ -0,0 +1,70 @@
++package ru.javawebinar.topjava.web.meal;
++
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.beans.factory.annotation.Autowired;
++import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.service.MealService;
++import ru.javawebinar.topjava.to.MealTo;
++import ru.javawebinar.topjava.util.MealsUtil;
++import ru.javawebinar.topjava.web.SecurityUtil;
++
++import java.time.LocalDate;
++import java.time.LocalTime;
++import java.util.List;
++
++import static ru.javawebinar.topjava.util.ValidationUtil.assureIdConsistent;
++import static ru.javawebinar.topjava.util.ValidationUtil.checkNew;
++
++public abstract class AbstractMealController {
++    private final Logger log = LoggerFactory.getLogger(getClass());
++
++    @Autowired
++    private MealService service;
++
++    public Meal get(int id) {
++        int userId = SecurityUtil.authUserId();
++        log.info("get meal {} for user {}", id, userId);
++        return service.get(id, userId);
++    }
++
++    public void delete(int id) {
++        int userId = SecurityUtil.authUserId();
++        log.info("delete meal {} for user {}", id, userId);
++        service.delete(id, userId);
++    }
++
++    public List<MealTo> getAll() {
++        int userId = SecurityUtil.authUserId();
++        log.info("getAll for user {}", userId);
++        return MealsUtil.getWithExcess(service.getAll(userId), SecurityUtil.authUserCaloriesPerDay());
++    }
++
++    public Meal create(Meal meal) {
++        int userId = SecurityUtil.authUserId();
++        checkNew(meal);
++        log.info("create {} for user {}", meal, userId);
++        return service.create(meal, userId);
++    }
++
++    public void update(Meal meal, int id) {
++        int userId = SecurityUtil.authUserId();
++        assureIdConsistent(meal, id);
++        log.info("update {} for user {}", meal, userId);
++        service.update(meal, userId);
++    }
++
++    /**
++     * <ol>Filter separately
++     * <li>by date</li>
++     * <li>by time for every date</li>
++     * </ol>
++     */
++    public List<MealTo> getBetween(LocalDate startDate, LocalTime startTime, LocalDate endDate, LocalTime endTime) {
++        int userId = SecurityUtil.authUserId();
++        log.info("getBetween dates({} - {}) time({} - {}) for user {}", startDate, endDate, startTime, endTime, userId);
++
++        List<Meal> mealsDateFiltered = service.getBetweenDates(startDate, endDate, userId);
++        return MealsUtil.getFilteredWithExcess(mealsDateFiltered, SecurityUtil.authUserCaloriesPerDay(), startTime, endTime);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1563970205000)
++++ src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1563970205000)
+@@ -1,89 +0,0 @@
+-package ru.javawebinar.topjava.web;
+-
+-import org.springframework.web.context.WebApplicationContext;
+-import org.springframework.web.context.support.WebApplicationContextUtils;
+-import org.springframework.util.StringUtils;
+-import ru.javawebinar.topjava.model.Meal;
+-import ru.javawebinar.topjava.web.meal.MealRestController;
+-
+-import javax.servlet.ServletConfig;
+-import javax.servlet.ServletException;
+-import javax.servlet.http.HttpServlet;
+-import javax.servlet.http.HttpServletRequest;
+-import javax.servlet.http.HttpServletResponse;
+-import java.io.IOException;
+-import java.time.LocalDate;
+-import java.time.LocalDateTime;
+-import java.time.LocalTime;
+-import java.time.temporal.ChronoUnit;
+-import java.util.Objects;
+-
+-import static ru.javawebinar.topjava.util.DateTimeUtil.parseLocalDate;
+-import static ru.javawebinar.topjava.util.DateTimeUtil.parseLocalTime;
+-
+-public class MealServlet extends HttpServlet {
+-
+-    private MealRestController mealController;
+-
+-    @Override
+-    public void init(ServletConfig config) throws ServletException {
+-        super.init(config);
+-        WebApplicationContext springContext = WebApplicationContextUtils.getRequiredWebApplicationContext(getServletContext());
+-        mealController = springContext.getBean(MealRestController.class);
+-    }
+-
+-    @Override
+-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        request.setCharacterEncoding("UTF-8");
+-        Meal meal = new Meal(
+-                LocalDateTime.parse(request.getParameter("dateTime")),
+-                request.getParameter("description"),
+-                Integer.parseInt(request.getParameter("calories")));
+-
+-        if (StringUtils.isEmpty(request.getParameter("id"))) {
+-            mealController.create(meal);
+-        } else {
+-            mealController.update(meal, getId(request));
+-        }
+-        response.sendRedirect("meals");
+-    }
+-
+-    @Override
+-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        String action = request.getParameter("action");
+-
+-        switch (action == null ? "all" : action) {
+-            case "delete":
+-                int id = getId(request);
+-                mealController.delete(id);
+-                response.sendRedirect("meals");
+-                break;
+-            case "create":
+-            case "update":
+-                final Meal meal = "create".equals(action) ?
+-                        new Meal(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES), "", 1000) :
+-                        mealController.get(getId(request));
+-                request.setAttribute("meal", meal);
+-                request.getRequestDispatcher("/mealForm.jsp").forward(request, response);
+-                break;
+-            case "filter":
+-                LocalDate startDate = parseLocalDate(request.getParameter("startDate"));
+-                LocalDate endDate = parseLocalDate(request.getParameter("endDate"));
+-                LocalTime startTime = parseLocalTime(request.getParameter("startTime"));
+-                LocalTime endTime = parseLocalTime(request.getParameter("endTime"));
+-                request.setAttribute("meals", mealController.getBetween(startDate, startTime, endDate, endTime));
+-                request.getRequestDispatcher("/meals.jsp").forward(request, response);
+-                break;
+-            case "all":
+-            default:
+-                request.setAttribute("meals", mealController.getAll());
+-                request.getRequestDispatcher("/meals.jsp").forward(request, response);
+-                break;
+-        }
+-    }
+-
+-    private int getId(HttpServletRequest request) {
+-        String paramId = Objects.requireNonNull(request.getParameter("id"));
+-        return Integer.parseInt(paramId);
+-    }
+-}
+Index: src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(date 1563970205000)
++++ src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(date 1563970205000)
+@@ -1,42 +0,0 @@
+-package ru.javawebinar.topjava.web;
+-
+-import org.slf4j.Logger;
+-import org.springframework.web.context.WebApplicationContext;
+-import org.springframework.web.context.support.WebApplicationContextUtils;
+-import ru.javawebinar.topjava.web.user.AdminRestController;
+-
+-import javax.servlet.ServletConfig;
+-import javax.servlet.ServletException;
+-import javax.servlet.http.HttpServlet;
+-import javax.servlet.http.HttpServletRequest;
+-import javax.servlet.http.HttpServletResponse;
+-import java.io.IOException;
+-
+-import static org.slf4j.LoggerFactory.getLogger;
+-
+-public class UserServlet extends HttpServlet {
+-    private static final Logger log = getLogger(UserServlet.class);
+-
+-    private AdminRestController adminController;
+-
+-    @Override
+-    public void init(ServletConfig config) throws ServletException {
+-        super.init(config);
+-        WebApplicationContext springContext = WebApplicationContextUtils.getRequiredWebApplicationContext(getServletContext());
+-        adminController = springContext.getBean(AdminRestController.class);
+-    }
+-
+-    @Override
+-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        int userId = Integer.parseInt(request.getParameter("userId"));
+-        SecurityUtil.setAuthUserId(userId);
+-        response.sendRedirect("meals");
+-    }
+-
+-    @Override
+-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        log.debug("getAll");
+-        request.setAttribute("users", adminController.getAll());
+-        request.getRequestDispatcher("/users.jsp").forward(request, response);
+-    }
+-}
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- config/messages/app.properties	(date 1563970205000)
++++ config/messages/app.properties	(date 1563986118120)
+@@ -2,11 +2,28 @@
+ app.home=Home
+ app.footer=Internship <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> application
+ app.login=Login as
++
+ user.title=Users
+ user.name=Name
+ user.email=Email
+ user.roles=Roles
+ user.active=Active
+ user.registered=Registered
++
+ meal.title=Meals
+-common.select=Select
+\ No newline at end of file
++meal.edit=Edit meal
++meal.add=Add meal
++meal.filter=Filter
++meal.startDate=From date
++meal.endDate=To date
++meal.startTime=From time
++meal.endTime=To time
++meal.description=Description
++meal.dateTime=Date/Time
++meal.calories=Calories
++
++common.select=Select
++common.delete=Delete
++common.update=Update
++common.save=Save
++common.cancel=Cancel
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/RootController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/RootController.java	(date 1563970205000)
++++ src/main/java/ru/javawebinar/topjava/web/RootController.java	(date 1563986118166)
+@@ -5,14 +5,19 @@
+ import org.springframework.ui.Model;
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.PostMapping;
++import ru.javawebinar.topjava.service.MealService;
+ import ru.javawebinar.topjava.service.UserService;
++import ru.javawebinar.topjava.util.MealsUtil;
+ 
+ import javax.servlet.http.HttpServletRequest;
+ 
+ @Controller
+ public class RootController {
+     @Autowired
+-    private UserService service;
++    private UserService userService;
++
++    @Autowired
++    private MealService mealService;
+ 
+     @GetMapping("/")
+     public String root() {
+@@ -21,7 +26,7 @@
+ 
+     @GetMapping("/users")
+     public String users(Model model) {
+-        model.addAttribute("users", service.getAll());
++        model.addAttribute("users", userService.getAll());
+         return "users";
+     }
+ 
+@@ -31,4 +36,11 @@
+         SecurityUtil.setAuthUserId(userId);
+         return "redirect:meals";
+     }
++
++    @GetMapping("/meals")
++    public String meals(Model model) {
++        model.addAttribute("meals",
++                MealsUtil.getWithExcess(mealService.getAll(SecurityUtil.authUserId()), SecurityUtil.authUserCaloriesPerDay()));
++        return "meals";
++    }
+ }
+Index: src/main/webapp/WEB-INF/jsp/mealForm.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/mealForm.jsp	(date 1563970205000)
++++ src/main/webapp/WEB-INF/jsp/mealForm.jsp	(date 1563986202831)
+@@ -1,34 +1,34 @@
+ <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+ <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+ 
+ <html>
+-<head>
+-    <title>Meal</title>
+-    <link rel="stylesheet" href="css/style.css">
+-</head>
++<jsp:include page="fragments/headTag.jsp"/>
+ <body>
++<jsp:include page="fragments/bodyHeader.jsp"/>
++
+ <section>
+-    <h3><a href="index.html">Home</a></h3>
+-    <hr>
+-    <h2>${param.action == 'create' ? 'Create meal' : 'Edit meal'}</h2>
+     <jsp:useBean id="meal" type="ru.javawebinar.topjava.model.Meal" scope="request"/>
++    <h3><spring:message code="${meal.isNew() ? 'meal.add' : 'meal.edit'}"/></h3>
++    <hr>
+     <form method="post" action="meals">
+         <input type="hidden" name="id" value="${meal.id}">
+         <dl>
+-            <dt>DateTime:</dt>
++            <dt><spring:message code="meal.dateTime"/>:</dt>
+             <dd><input type="datetime-local" value="${meal.dateTime}" name="dateTime" required></dd>
+         </dl>
+         <dl>
+-            <dt>Description:</dt>
++            <dt><spring:message code="meal.description"/>:</dt>
+             <dd><input type="text" value="${meal.description}" size=40 name="description" required></dd>
+         </dl>
+         <dl>
+-            <dt>Calories:</dt>
++            <dt><spring:message code="meal.calories"/>:</dt>
+             <dd><input type="number" value="${meal.calories}" name="calories" required></dd>
+         </dl>
+-        <button type="submit">Save</button>
+-        <button onclick="window.history.back()" type="button">Cancel</button>
++        <button type="submit"><spring:message code="common.save"/></button>
++        <button onclick="window.history.back()" type="button"><spring:message code="common.cancel"/></button>
+     </form>
+ </section>
++<jsp:include page="fragments/footer.jsp"/>
+ </body>
+ </html>
+Index: src/main/webapp/WEB-INF/jsp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/meals.jsp	(date 1563970205000)
++++ src/main/webapp/WEB-INF/jsp/meals.jsp	(date 1563986515757)
+@@ -1,52 +1,49 @@
+ <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+ <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+ <%@ taglib prefix="fn" uri="http://topjava.javawebinar.ru/functions" %>
+ <html>
+-<head>
+-    <title>Meal</title>
+-    <link rel="stylesheet" href="css/style.css">
+-</head>
++<jsp:include page="fragments/headTag.jsp"/>
+ <body>
++<jsp:include page="fragments/bodyHeader.jsp"/>
++
+ <section>
+-    <h3><a href="index.jsp">Home</a></h3>
+-    <hr/>
+-    <h2>Meals</h2>
+-    <form method="get" action="meals">
+-        <input type="hidden" name="action" value="filter">
++    <h3><spring:message code="meal.title"/></h3>
++
++    <form method="post" action="meals/filter">
+         <dl>
+-            <dt>From Date:</dt>
++            <dt><spring:message code="meal.startDate"/>:</dt>
+             <dd><input type="date" name="startDate" value="${param.startDate}"></dd>
+         </dl>
+         <dl>
+-            <dt>To Date:</dt>
++            <dt><spring:message code="meal.endDate"/>:</dt>
+             <dd><input type="date" name="endDate" value="${param.endDate}"></dd>
+         </dl>
+         <dl>
+-            <dt>From Time:</dt>
++            <dt><spring:message code="meal.startTime"/>:</dt>
+             <dd><input type="time" name="startTime" value="${param.startTime}"></dd>
+         </dl>
+         <dl>
+-            <dt>To Time:</dt>
++            <dt><spring:message code="meal.endTime"/>:</dt>
+             <dd><input type="time" name="endTime" value="${param.endTime}"></dd>
+         </dl>
+-        <button type="submit">Filter</button>
++        <button type="submit"><spring:message code="meal.filter"/></button>
+     </form>
+-    <hr/>
+-    <a href="meals?action=create">Add Meal</a>
+-    <br><br>
++    <hr>
++    <a href="meals/create"><spring:message code="meal.add"/></a>
++    <hr>
+     <table border="1" cellpadding="8" cellspacing="0">
+         <thead>
+         <tr>
+-            <th>Date</th>
+-            <th>Description</th>
+-            <th>Calories</th>
++            <th><spring:message code="meal.dateTime"/></th>
++            <th><spring:message code="meal.description"/></th>
++            <th><spring:message code="meal.calories"/></th>
+             <th></th>
+             <th></th>
+         </tr>
+         </thead>
+         <c:forEach items="${meals}" var="meal">
+-            <jsp:useBean id="meal" type="ru.javawebinar.topjava.to.MealTo"/>
++            <jsp:useBean id="meal" scope="page" type="ru.javawebinar.topjava.to.MealTo"/>
+             <tr data-mealExcess="${meal.excess}">
+                 <td>
+                         <%--${meal.dateTime.toLocalDate()} ${meal.dateTime.toLocalTime()}--%>
+@@ -56,11 +53,12 @@
+                 </td>
+                 <td>${meal.description}</td>
+                 <td>${meal.calories}</td>
+-                <td><a href="meals?action=update&id=${meal.id}">Update</a></td>
+-                <td><a href="meals?action=delete&id=${meal.id}">Delete</a></td>
++                <td><a href="meals/update?id=${meal.id}"><spring:message code="common.update"/></a></td>
++                <td><a href="meals/delete?id=${meal.id}"><spring:message code="common.delete"/></a></td>
+             </tr>
+         </c:forEach>
+     </table>
+ </section>
++<jsp:include page="fragments/footer.jsp"/>
+ </body>
+ </html>
+\ No newline at end of file
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1563970205000)
++++ config/messages/app_ru.properties	(date 1563986515749)
+@@ -2,11 +2,28 @@
+ app.home=Главная
+ app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
+ app.login=Зайти как
++
+ user.title=Пользователи
+ user.name=Имя
+ user.email=Почта
+ user.roles=Роли
+ user.active=Активный
+ user.registered=Зарегистрирован
++
+ meal.title=Моя еда
+-common.select=Выбрать
+\ No newline at end of file
++meal.edit=Редактирование еды
++meal.add=Добавление еды
++meal.filter=Отфильтровать
++meal.startDate=От даты
++meal.endDate=До даты
++meal.startTime=От времени
++meal.endTime=До времени
++meal.description=Описание
++meal.dateTime=Дата/Время
++meal.calories=Калории
++
++common.select=Выбрать
++common.delete=Удалить
++common.update=Обновить
++common.save=Сохранить
++common.cancel=Отменить
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1563970205000)
++++ src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1563986118152)
+@@ -1,76 +1,7 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
+-import org.slf4j.Logger;
+-import org.slf4j.LoggerFactory;
+-import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Controller;
+-import ru.javawebinar.topjava.model.Meal;
+-import ru.javawebinar.topjava.service.MealService;
+-import ru.javawebinar.topjava.to.MealTo;
+-import ru.javawebinar.topjava.util.MealsUtil;
+-import ru.javawebinar.topjava.web.SecurityUtil;
+-
+-import java.time.LocalDate;
+-import java.time.LocalTime;
+-import java.util.List;
+-
+-import static ru.javawebinar.topjava.util.ValidationUtil.assureIdConsistent;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkNew;
+ 
+ @Controller
+-public class MealRestController {
+-    private static final Logger log = LoggerFactory.getLogger(MealRestController.class);
+-
+-    private final MealService service;
+-
+-    @Autowired
+-    public MealRestController(MealService service) {
+-        this.service = service;
+-    }
+-
+-    public Meal get(int id) {
+-        int userId = SecurityUtil.authUserId();
+-        log.info("get meal {} for user {}", id, userId);
+-        return service.get(id, userId);
+-    }
+-
+-    public void delete(int id) {
+-        int userId = SecurityUtil.authUserId();
+-        log.info("delete meal {} for user {}", id, userId);
+-        service.delete(id, userId);
+-    }
+-
+-    public List<MealTo> getAll() {
+-        int userId = SecurityUtil.authUserId();
+-        log.info("getAll for user {}", userId);
+-        return MealsUtil.getWithExcess(service.getAll(userId), SecurityUtil.authUserCaloriesPerDay());
+-    }
+-
+-    public Meal create(Meal meal) {
+-        int userId = SecurityUtil.authUserId();
+-        checkNew(meal);
+-        log.info("create {} for user {}", meal, userId);
+-        return service.create(meal, userId);
+-    }
+-
+-    public void update(Meal meal, int id) {
+-        int userId = SecurityUtil.authUserId();
+-        assureIdConsistent(meal, id);
+-        log.info("update {} for user {}", meal, userId);
+-        service.update(meal, userId);
+-    }
+-
+-    /**
+-     * <ol>Filter separately
+-     * <li>by date</li>
+-     * <li>by time for every date</li>
+-     * </ol>
+-     */
+-    public List<MealTo> getBetween(LocalDate startDate, LocalTime startTime, LocalDate endDate, LocalTime endTime) {
+-        int userId = SecurityUtil.authUserId();
+-        log.info("getBetween dates({} - {}) time({} - {}) for user {}", startDate, endDate, startTime, endTime, userId);
+-
+-        List<Meal> mealsDateFiltered = service.getBetweenDates(startDate, endDate, userId);
+-        return MealsUtil.getFilteredWithExcess(mealsDateFiltered, SecurityUtil.authUserCaloriesPerDay(), startTime, endTime);
+-    }
++public class MealRestController extends AbstractMealController {
+ }
+\ No newline at end of file

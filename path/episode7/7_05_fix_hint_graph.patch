@@ -1,0 +1,59 @@
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(date 1563987581000)
++++ src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(date 1563987698167)
+@@ -14,9 +14,9 @@
+ public class DataJpaUserServiceTest extends AbstractJpaUserServiceTest {
+     @Test
+     public void testGetWithMeals() throws Exception {
+-        User user = service.getWithMeals(USER_ID);
+-        assertMatch(user, USER);
+-        MealTestData.assertMatch(user.getMeals(), MealTestData.MEALS);
++        User admin = service.getWithMeals(ADMIN_ID);
++        assertMatch(admin, ADMIN);
++        MealTestData.assertMatch(admin.getMeals(), MealTestData.ADMIN_MEAL2, MealTestData.ADMIN_MEAL1);
+     }
+ 
+     @Test(expected = NotFoundException.class)
+Index: src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java	(date 1563987581000)
++++ src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java	(date 1563987684836)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.repository.jpa;
+ 
++import org.hibernate.jpa.QueryHints;
+ import org.springframework.dao.support.DataAccessUtils;
+ import org.springframework.stereotype.Repository;
+ import org.springframework.transaction.annotation.Transactional;
+@@ -61,6 +62,7 @@
+     public User getByEmail(String email) {
+         List<User> users = em.createNamedQuery(User.BY_EMAIL, User.class)
+                 .setParameter(1, email)
++                .setHint(QueryHints.HINT_PASS_DISTINCT_THROUGH, false)
+                 .getResultList();
+         return DataAccessUtils.singleResult(users);
+     }
+Index: src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java	(date 1563987581000)
++++ src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java	(date 1563987698139)
+@@ -17,7 +17,8 @@
+ 
+     User getByEmail(String email);
+ 
+-    @EntityGraph(attributePaths = {"meals", "roles"})
++    //    https://stackoverflow.com/a/46013654/548473
++    @EntityGraph(attributePaths = {"meals"}, type = EntityGraph.EntityGraphType.LOAD)
+     @Query("SELECT u FROM User u WHERE u.id=?1")
+     User getWithMeals(int id);
+ }

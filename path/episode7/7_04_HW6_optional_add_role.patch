@@ -1,0 +1,98 @@
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1563987289000)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1563987294897)
+@@ -55,8 +55,8 @@
+ 
+     @Test
+     public void get() throws Exception {
+-        User user = service.get(USER_ID);
+-        assertMatch(user, USER);
++        User user = service.get(ADMIN_ID);
++        assertMatch(user, ADMIN);
+     }
+ 
+     @Test(expected = NotFoundException.class)
+@@ -66,8 +66,8 @@
+ 
+     @Test
+     public void getByEmail() throws Exception {
+-        User user = service.getByEmail("user@yandex.ru");
+-        assertMatch(user, USER);
++        User user = service.getByEmail("admin@gmail.com");
++        assertMatch(user, ADMIN);
+     }
+ 
+     @Test
+@@ -75,6 +75,7 @@
+         User updated = new User(USER);
+         updated.setName("UpdatedName");
+         updated.setCaloriesPerDay(330);
++        updated.setRoles(Collections.singletonList(Role.ROLE_ADMIN));
+         service.update(updated);
+         assertMatch(service.get(USER_ID), updated);
+     }
+Index: src/main/resources/db/populateDB.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/db/populateDB.sql	(date 1563987289000)
++++ src/main/resources/db/populateDB.sql	(date 1563987294887)
+@@ -9,7 +9,8 @@
+ 
+ INSERT INTO user_roles (role, user_id) VALUES
+   ('ROLE_USER', 100000),
+-  ('ROLE_ADMIN', 100001);
++  ('ROLE_ADMIN', 100001),
++  ('ROLE_USER', 100001);
+ 
+ INSERT INTO meals (date_time, description, calories, user_id)
+ VALUES ('2015-05-30 10:00:00', 'Завтрак', 500, 100000),
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/User.java	(date 1563987289000)
++++ src/main/java/ru/javawebinar/topjava/model/User.java	(date 1563987294873)
+@@ -18,7 +18,7 @@
+ @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+ @NamedQueries({
+         @NamedQuery(name = User.DELETE, query = "DELETE FROM User u WHERE u.id=:id"),
+-        @NamedQuery(name = User.BY_EMAIL, query = "SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email=?1"),
++        @NamedQuery(name = User.BY_EMAIL, query = "SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email=?1"),
+         @NamedQuery(name = User.ALL_SORTED, query = "SELECT u FROM User u ORDER BY u.name, u.email"),
+ })
+ @Entity
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1563987289000)
++++ src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1563987294906)
+@@ -13,10 +13,10 @@
+     public static final int ADMIN_ID = START_SEQ + 1;
+ 
+     public static final User USER = new User(USER_ID, "User", "user@yandex.ru", "password", Role.ROLE_USER);
+-    public static final User ADMIN = new User(ADMIN_ID, "Admin", "admin@gmail.com", "admin", Role.ROLE_ADMIN);
++    public static final User ADMIN = new User(ADMIN_ID, "Admin", "admin@gmail.com", "admin", Role.ROLE_ADMIN, Role.ROLE_USER);
+ 
+     public static void assertMatch(User actual, User expected) {
+-        assertThat(actual).isEqualToIgnoringGivenFields(expected, "registered", "roles", "meals");
++        assertThat(actual).isEqualToIgnoringGivenFields(expected, "registered", "meals");
+     }
+ 
+     public static void assertMatch(Iterable<User> actual, User... expected) {
+@@ -24,6 +24,6 @@
+     }
+ 
+     public static void assertMatch(Iterable<User> actual, Iterable<User> expected) {
+-        assertThat(actual).usingElementComparatorIgnoringFields("registered", "roles", "meals").isEqualTo(expected);
++        assertThat(actual).usingElementComparatorIgnoringFields("registered", "meals").isEqualTo(expected);
+     }
+ }

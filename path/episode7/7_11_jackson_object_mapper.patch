@@ -1,0 +1,139 @@
+Index: src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(date 1563996233969)
++++ src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(date 1563996233969)
+@@ -0,0 +1,31 @@
++package ru.javawebinar.topjava.web.json;
++
++import com.fasterxml.jackson.annotation.JsonAutoDetect;
++import com.fasterxml.jackson.annotation.JsonInclude;
++import com.fasterxml.jackson.annotation.PropertyAccessor;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.databind.SerializationFeature;
++import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
++import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
++
++/**
++ * <p>
++ * Handling Hibernate lazy-loading
++ *
++ * @link https://github.com/FasterXML/jackson
++ * @link https://github.com/FasterXML/jackson-datatype-hibernate
++ * @link https://github.com/FasterXML/jackson-docs/wiki/JacksonHowToCustomSerializers
++ */
++public class JacksonObjectMapper extends ObjectMapper {
++
++    private JacksonObjectMapper() {
++        registerModule(new Hibernate5Module());
++
++        registerModule(new JavaTimeModule());
++        configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
++
++        setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.NONE);
++        setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
++        setSerializationInclusion(JsonInclude.Include.NON_NULL);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/User.java	(date 1563996220000)
++++ src/main/java/ru/javawebinar/topjava/model/User.java	(date 1563996233959)
+@@ -1,6 +1,5 @@
+ package ru.javawebinar.topjava.model;
+ 
+-import com.fasterxml.jackson.annotation.JsonIgnore;
+ import org.hibernate.annotations.BatchSize;
+ import org.hibernate.annotations.Cache;
+ import org.hibernate.annotations.CacheConcurrencyStrategy;
+@@ -63,7 +62,7 @@
+ 
+     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
+     @OrderBy("dateTime DESC")
+-    @JsonIgnore
++//    @JsonIgnore
+     protected List<Meal> meals;
+ 
+     public User() {
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1563996220000)
++++ pom.xml	(date 1563996233979)
+@@ -210,6 +210,16 @@
+             <artifactId>jackson-databind</artifactId>
+             <version>${jackson-json.version}</version>
+         </dependency>
++        <dependency>
++            <groupId>com.fasterxml.jackson.datatype</groupId>
++            <artifactId>jackson-datatype-hibernate5</artifactId>
++            <version>${jackson-json.version}</version>
++        </dependency>
++        <dependency>
++            <groupId>com.fasterxml.jackson.datatype</groupId>
++            <artifactId>jackson-datatype-jsr310</artifactId>
++            <version>${jackson-json.version}</version>
++        </dependency>
+ 
+         <!--Test-->
+         <dependency>
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1563996220000)
++++ src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1563996233949)
+@@ -1,18 +1,14 @@
+ package ru.javawebinar.topjava.model;
+ 
+-import com.fasterxml.jackson.annotation.JsonAutoDetect;
+ import org.hibernate.Hibernate;
+ import org.springframework.data.domain.Persistable;
+ 
+ import javax.persistence.*;
+ 
+-import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.ANY;
+-import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE;
+-
+ @MappedSuperclass
+ // http://stackoverflow.com/questions/594597/hibernate-annotations-which-is-better-field-or-property-access
+ @Access(AccessType.FIELD)
+-@JsonAutoDetect(fieldVisibility = ANY, getterVisibility = NONE, isGetterVisibility = NONE, setterVisibility = NONE)
++//@JsonAutoDetect(fieldVisibility = ANY, getterVisibility = NONE, isGetterVisibility = NONE, setterVisibility = NONE)
+ public abstract class AbstractBaseEntity implements Persistable<Integer> {
+     public static final int START_SEQ = 100000;
+ 
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-mvc.xml	(date 1563996220000)
++++ src/main/resources/spring/spring-mvc.xml	(date 1563996233969)
+@@ -5,7 +5,16 @@
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+ 
+-    <mvc:annotation-driven/>
++    <mvc:annotation-driven>
++        <mvc:message-converters>
++            <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
++                <property name="objectMapper">
++                    <bean class="ru.javawebinar.topjava.web.json.JacksonObjectMapper"/>
++                </property>
++            </bean>
++        </mvc:message-converters>
++    </mvc:annotation-driven>
++
+ 
+     <context:component-scan base-package="ru.javawebinar.**.web"/>
+ 

@@ -1,0 +1,321 @@
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1563997270824)
++++ src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1563997270824)
+@@ -0,0 +1,44 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.http.MediaType;
++import ru.javawebinar.topjava.model.Role;
++import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.web.AbstractControllerTest;
++import ru.javawebinar.topjava.web.json.JsonUtil;
++
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.UserTestData.*;
++import static ru.javawebinar.topjava.web.user.ProfileRestController.REST_URL;
++
++class ProfileRestControllerTest extends AbstractControllerTest {
++
++    @Test
++    void testGet() throws Exception {
++        mockMvc.perform(get(REST_URL))
++                .andExpect(status().isOk())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(contentJson(USER));
++    }
++
++    @Test
++    void testDelete() throws Exception {
++        mockMvc.perform(delete(REST_URL))
++                .andExpect(status().isNoContent());
++        assertMatch(userService.getAll(), ADMIN);
++    }
++
++    @Test
++    void testUpdate() throws Exception {
++        User updated = new User(USER_ID, "newName", "newemail@ya.ru", "newPassword", Role.ROLE_USER);
++        mockMvc.perform(put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(updated)))
++                .andDo(print())
++                .andExpect(status().isNoContent());
++
++        assertMatch(userService.getByEmail("newemail@ya.ru"), updated);
++    }
++}
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/TestUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/TestUtil.java	(date 1563997270842)
++++ src/test/java/ru/javawebinar/topjava/TestUtil.java	(date 1563997270842)
+@@ -0,0 +1,26 @@
++package ru.javawebinar.topjava;
++
++import org.springframework.test.web.servlet.MvcResult;
++import org.springframework.test.web.servlet.ResultActions;
++import ru.javawebinar.topjava.web.json.JsonUtil;
++
++import java.io.UnsupportedEncodingException;
++import java.util.List;
++
++public class TestUtil {
++    public static String getContent(MvcResult result) throws UnsupportedEncodingException {
++        return result.getResponse().getContentAsString();
++    }
++
++    public static <T> T readFromJson(ResultActions action, Class<T> clazz) throws UnsupportedEncodingException {
++        return JsonUtil.readValue(getContent(action.andReturn()), clazz);
++    }
++
++    public static <T> T readFromJsonMvcResult(MvcResult result, Class<T> clazz) throws UnsupportedEncodingException {
++        return JsonUtil.readValue(getContent(result), clazz);
++    }
++
++    public static <T> List<T> readListFromJsonMvcResult(MvcResult result, Class<T> clazz) throws UnsupportedEncodingException {
++        return JsonUtil.readValues(getContent(result), clazz);
++    }
++}
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1563997222000)
++++ src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1563997270815)
+@@ -2,14 +2,20 @@
+ 
+ import org.junit.jupiter.api.Test;
+ import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.ResultActions;
++import ru.javawebinar.topjava.model.Role;
++import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
++import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
+-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
++import java.util.Collections;
++
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.TestUtil.readFromJson;
+ import static ru.javawebinar.topjava.UserTestData.*;
+-import static ru.javawebinar.topjava.web.json.JsonUtil.writeIgnoreProps;
+ 
+ class AdminRestControllerTest extends AbstractControllerTest {
+ 
+@@ -22,6 +28,58 @@
+                 .andDo(print())
+                 // https://jira.spring.io/browse/SPR-14472
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+-                .andExpect(content().json(writeIgnoreProps(ADMIN, "registered")));
++                .andExpect(contentJson(ADMIN));
++    }
++
++    @Test
++    void testGetByEmail() throws Exception {
++        mockMvc.perform(get(REST_URL + "by?email=" + USER.getEmail()))
++                .andExpect(status().isOk())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(contentJson(USER));
++    }
++
++    @Test
++    void testDelete() throws Exception {
++        mockMvc.perform(delete(REST_URL + USER_ID))
++                .andDo(print())
++                .andExpect(status().isNoContent());
++        assertMatch(userService.getAll(), ADMIN);
++    }
++
++    @Test
++    void testUpdate() throws Exception {
++        User updated = new User(USER);
++        updated.setName("UpdatedName");
++        updated.setRoles(Collections.singletonList(Role.ROLE_ADMIN));
++        mockMvc.perform(put(REST_URL + USER_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(updated)))
++                .andExpect(status().isNoContent());
++
++        assertMatch(userService.get(USER_ID), updated);
++    }
++
++    @Test
++    void testCreate() throws Exception {
++        User expected = new User(null, "New", "new@gmail.com", "newPass", Role.ROLE_USER, Role.ROLE_ADMIN);
++        ResultActions action = mockMvc.perform(post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(expected)))
++                .andExpect(status().isCreated());
++
++        User returned = readFromJson(action, User.class);
++        expected.setId(returned.getId());
++
++        assertMatch(returned, expected);
++        assertMatch(userService.getAll(), ADMIN, expected, USER);
++    }
++
++    @Test
++    void testGetAll() throws Exception {
++        mockMvc.perform(get(REST_URL))
++                .andExpect(status().isOk())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(contentJson(ADMIN, USER));
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1563997222000)
++++ src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1563997436448)
+@@ -1,12 +1,10 @@
+ package ru.javawebinar.topjava.web.json;
+ 
+ import com.fasterxml.jackson.core.JsonProcessingException;
+-import com.fasterxml.jackson.core.type.TypeReference;
+ import com.fasterxml.jackson.databind.ObjectReader;
+ 
+ import java.io.IOException;
+ import java.util.List;
+-import java.util.Map;
+ 
+ import static ru.javawebinar.topjava.web.json.JacksonObjectMapper.getMapper;
+ 
+@@ -36,13 +34,4 @@
+             throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
+         }
+     }
+-
+-    public static <T> String writeIgnoreProps(T obj, String... ignoreProps) {
+-        Map<String, Object> map = getMapper().convertValue(obj, new TypeReference<Map<String, Object>>() {
+-        });
+-        for (String prop : ignoreProps) {
+-            map.remove(prop);
+-        }
+-        return writeValue(map);
+-    }
+ }
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1563997222000)
++++ pom.xml	(date 1563997270855)
+@@ -232,16 +232,10 @@
+ 
+         <dependency>
+             <groupId>org.hamcrest</groupId>
+-            <artifactId>hamcrest-all</artifactId>
++            <artifactId>hamcrest-core</artifactId>
+             <version>${hamcrest.version}</version>
+             <scope>test</scope>
+         </dependency>
+-        <dependency>
+-            <groupId>org.skyscreamer</groupId>
+-            <artifactId>jsonassert</artifactId>
+-            <version>${jsonassert.version}</version>
+-            <scope>test</scope>
+-        </dependency>
+ 
+         <dependency>
+             <groupId>org.springframework</groupId>
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1563997222000)
++++ src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1563997270834)
+@@ -1,13 +1,15 @@
+ package ru.javawebinar.topjava.web;
+ 
++import org.assertj.core.matcher.AssertionMatcher;
+ import org.junit.jupiter.api.Test;
++import ru.javawebinar.topjava.model.User;
+ 
+-import static org.hamcrest.Matchers.*;
++import java.util.List;
++
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+-import static ru.javawebinar.topjava.UserTestData.USER;
+-import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
++import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ class RootControllerTest extends AbstractControllerTest {
+ 
+@@ -18,12 +20,13 @@
+                 .andExpect(status().isOk())
+                 .andExpect(view().name("users"))
+                 .andExpect(forwardedUrl("/WEB-INF/jsp/users.jsp"))
+-                .andExpect(model().attribute("users", hasSize(2)))
+-                .andExpect(model().attribute("users", hasItem(
+-                        allOf(
+-                                hasProperty("id", is(START_SEQ)),
+-                                hasProperty("name", is(USER.getName()))
+-                        )
+-                )));
++                .andExpect(model().attribute("users",
++                        new AssertionMatcher<List<User>>() {
++                            @Override
++                            public void assertion(List<User> actual) throws AssertionError {
++                                assertMatch(actual, ADMIN, USER);
++                            }
++                        }
++                ));
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1563997222000)
++++ src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1563997270849)
+@@ -1,11 +1,14 @@
+ package ru.javawebinar.topjava;
+ 
++import org.springframework.test.web.servlet.ResultMatcher;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ 
+ import java.util.List;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
++import static ru.javawebinar.topjava.TestUtil.readFromJsonMvcResult;
++import static ru.javawebinar.topjava.TestUtil.readListFromJsonMvcResult;
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class UserTestData {
+@@ -26,4 +29,12 @@
+     public static void assertMatch(Iterable<User> actual, Iterable<User> expected) {
+         assertThat(actual).usingElementComparatorIgnoringFields("registered", "meals").isEqualTo(expected);
+     }
++
++    public static ResultMatcher contentJson(User... expected) {
++        return result -> assertMatch(readListFromJsonMvcResult(result, User.class), List.of(expected));
++    }
++
++    public static ResultMatcher contentJson(User expected) {
++        return result -> assertMatch(readFromJsonMvcResult(result, User.class), expected);
++    }
+ }

@@ -1,0 +1,202 @@
+Index: src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(date 1563997002463)
++++ src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(date 1563997002463)
+@@ -0,0 +1,27 @@
++package ru.javawebinar.topjava.web.json;
++
++import org.junit.jupiter.api.Test;
++import ru.javawebinar.topjava.model.Meal;
++
++import java.util.List;
++
++import static ru.javawebinar.topjava.MealTestData.*;
++
++class JsonUtilTest {
++
++    @Test
++    void testReadWriteValue() throws Exception {
++        String json = JsonUtil.writeValue(ADMIN_MEAL1);
++        System.out.println(json);
++        Meal meal = JsonUtil.readValue(json, Meal.class);
++        assertMatch(meal, ADMIN_MEAL1);
++    }
++
++    @Test
++    void testReadWriteValues() throws Exception {
++        String json = JsonUtil.writeValue(MEALS);
++        System.out.println(json);
++        List<Meal> meals = JsonUtil.readValues(json, Meal.class);
++        assertMatch(meals, MEALS);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1563997096133)
++++ src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1563997096133)
+@@ -0,0 +1,48 @@
++package ru.javawebinar.topjava.web.json;
++
++import com.fasterxml.jackson.core.JsonProcessingException;
++import com.fasterxml.jackson.core.type.TypeReference;
++import com.fasterxml.jackson.databind.ObjectReader;
++
++import java.io.IOException;
++import java.util.List;
++import java.util.Map;
++
++import static ru.javawebinar.topjava.web.json.JacksonObjectMapper.getMapper;
++
++public class JsonUtil {
++
++    public static <T> List<T> readValues(String json, Class<T> clazz) {
++        ObjectReader reader = getMapper().readerFor(clazz);
++        try {
++            return reader.<T>readValues(json).readAll();
++        } catch (IOException e) {
++            throw new IllegalArgumentException("Invalid read array from JSON:\n'" + json + "'", e);
++        }
++    }
++
++    public static <T> T readValue(String json, Class<T> clazz) {
++        try {
++            return getMapper().readValue(json, clazz);
++        } catch (IOException e) {
++            throw new IllegalArgumentException("Invalid read from JSON:\n'" + json + "'", e);
++        }
++    }
++
++    public static <T> String writeValue(T obj) {
++        try {
++            return getMapper().writeValueAsString(obj);
++        } catch (JsonProcessingException e) {
++            throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
++        }
++    }
++
++    public static <T> String writeIgnoreProps(T obj, String... ignoreProps) {
++        Map<String, Object> map = getMapper().convertValue(obj, new TypeReference<Map<String, Object>>() {
++        });
++        for (String prop : ignoreProps) {
++            map.remove(prop);
++        }
++        return writeValue(map);
++    }
++}
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1563996402000)
++++ src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1563997002470)
+@@ -8,7 +8,8 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+-import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
++import static ru.javawebinar.topjava.UserTestData.*;
++import static ru.javawebinar.topjava.web.json.JsonUtil.writeIgnoreProps;
+ 
+ class AdminRestControllerTest extends AbstractControllerTest {
+ 
+@@ -20,6 +21,7 @@
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 // https://jira.spring.io/browse/SPR-14472
+-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(content().json(writeIgnoreProps(ADMIN, "registered")));
+     }
+ }
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1563996402000)
++++ pom.xml	(date 1563997002479)
+@@ -30,6 +30,7 @@
+         <!--    Tests  -->
+         <junit.jupiter.version>5.5.1</junit.jupiter.version>
+         <hamcrest.version>1.3</hamcrest.version>
++        <jsonassert.version>1.5.0</jsonassert.version>
+ 
+         <!-- Hibernate -->
+         <hibernate.version>5.4.3.Final</hibernate.version>
+@@ -235,6 +236,12 @@
+             <version>${hamcrest.version}</version>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>org.skyscreamer</groupId>
++            <artifactId>jsonassert</artifactId>
++            <version>${jsonassert.version}</version>
++            <scope>test</scope>
++        </dependency>
+ 
+         <dependency>
+             <groupId>org.springframework</groupId>
+Index: src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(date 1563996402000)
++++ src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(date 1563997002425)
+@@ -18,6 +18,8 @@
+  */
+ public class JacksonObjectMapper extends ObjectMapper {
+ 
++    private static final ObjectMapper MAPPER = new JacksonObjectMapper();
++
+     private JacksonObjectMapper() {
+         registerModule(new Hibernate5Module());
+ 
+@@ -28,4 +30,8 @@
+         setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+         setSerializationInclusion(JsonInclude.Include.NON_NULL);
+     }
++
++    public static ObjectMapper getMapper() {
++        return MAPPER;
++    }
+ }
+\ No newline at end of file
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-mvc.xml	(date 1563996402000)
++++ src/main/resources/spring/spring-mvc.xml	(date 1563997002457)
+@@ -5,17 +5,16 @@
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+ 
++    <bean class="ru.javawebinar.topjava.web.json.JacksonObjectMapper" id="objectMapper" factory-method="getMapper"/>
++
+     <mvc:annotation-driven>
+         <mvc:message-converters>
+             <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+-                <property name="objectMapper">
+-                    <bean class="ru.javawebinar.topjava.web.json.JacksonObjectMapper"/>
+-                </property>
++                <property name="objectMapper" ref="objectMapper"/>
+             </bean>
+         </mvc:message-converters>
+     </mvc:annotation-driven>
+ 
+-
+     <context:component-scan base-package="ru.javawebinar.**.web"/>
+ 
+     <!--  all resources inside folder src/main/webapp/resources are mapped so they can be referred to inside JSP files -->

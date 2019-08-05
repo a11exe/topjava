@@ -1,0 +1,84 @@
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1564159511000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1564167846614)
+@@ -6,10 +6,7 @@
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
+ 
+-import java.util.List;
+-
+ import static ru.javawebinar.topjava.util.ValidationUtil.assureIdConsistent;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkNew;
+ 
+ public abstract class AbstractUserController {
+     protected final Logger log = LoggerFactory.getLogger(getClass());
+Index: .gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .gitignore	(date 1564159511000)
++++ .gitignore	(date 1564241773681)
+@@ -3,6 +3,4 @@
+ target
+ *.iml
+ log
+-
+-
+-
++*.patch
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(date 1564159511000)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(date 1564242215421)
+@@ -7,7 +7,6 @@
+ import org.springframework.test.context.jdbc.Sql;
+ import org.springframework.test.context.jdbc.SqlConfig;
+ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+-import org.springframework.test.context.junit4.SpringRunner;
+ import ru.javawebinar.topjava.ActiveDbProfileResolver;
+ import ru.javawebinar.topjava.Profiles;
+ import ru.javawebinar.topjava.TimingExtension;
+Index: .codacy.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .codacy.yml	(date 1564159511000)
++++ .codacy.yml	(date 1564241773687)
+@@ -1,4 +1,5 @@
+ ---
+ exclude_paths:
+   - 'src/main/webapp/**'
+-  - 'README.md'
+\ No newline at end of file
++  - 'README.md'
++  - '**.sql'
+\ No newline at end of file
+Index: .travis.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .travis.yml	(date 1564159511000)
++++ .travis.yml	(date 1564240768343)
+@@ -17,6 +17,10 @@
+   only:
+   - master
+ 
++# https://stackoverflow.com/a/49852690/548473:
++services:
++  - postgresql
++
+ # https://docs.travis-ci.com/user/notifications#Configuring-email-notifications
+ #notifications:
+ #  email: false
+\ No newline at end of file
