@@ -1,0 +1,87 @@
+ Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/resources/js/topjava.common.js	(date 1564325166000)
++++ src/main/webapp/resources/js/topjava.common.js	(date 1564325216829)
+@@ -8,6 +8,13 @@
+             deleteRow($(this).attr("id"));
+         }
+     });
++
++    $(document).ajaxError(function (event, jqXHR, options, jsExc) {
++        failNoty(jqXHR);
++    });
++
++    // solve problem with cache in IE: https://stackoverflow.com/a/4303862/548473
++    $.ajaxSetup({cache: false});
+ }
+ 
+ function add() {
+@@ -21,6 +28,7 @@
+         type: "DELETE"
+     }).done(function () {
+         updateTable();
++        successNoty("Deleted");
+     });
+ }
+ 
+@@ -38,5 +46,34 @@
+     }).done(function () {
+         $("#editRow").modal("hide");
+         updateTable();
++        successNoty("Saved");
+     });
++}
++
++let failedNote;
++
++function closeNoty() {
++    if (failedNote) {
++        failedNote.close();
++        failedNote = undefined;
++    }
++}
++
++function successNoty(text) {
++    closeNoty();
++    new Noty({
++        text: "<span class='fa fa-lg fa-check'></span> &nbsp;" + text,
++        type: 'success',
++        layout: "bottomRight",
++        timeout: 1000
++    }).show();
++}
++
++function failNoty(jqXHR) {
++    closeNoty();
++    failedNote = new Noty({
++        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;Error status: " + jqXHR.status,
++        type: "error",
++        layout: "bottomRight"
++    }).show();
+ }
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1564325166000)
++++ src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1564325216840)
+@@ -11,6 +11,7 @@
+     <link rel="stylesheet" href="webjars/bootstrap/4.3.1/css/bootstrap.min.css">
+     <link rel="stylesheet" href="webjars/noty/3.1.4/demo/font-awesome/css/font-awesome.min.css">
+     <link rel="stylesheet" href="webjars/datatables/1.10.19/css/dataTables.bootstrap4.min.css">
++    <link rel="stylesheet" href="webjars/noty/3.1.4/lib/noty.css"/>
+     <link rel="shortcut icon" href="resources/images/icon-meal.png">
+ 
+     <%--http://stackoverflow.com/a/24070373/548473--%>
+@@ -18,4 +19,5 @@
+     <script type="text/javascript" src="webjars/bootstrap/4.3.1/js/bootstrap.min.js" defer></script>
+     <script type="text/javascript" src="webjars/datatables/1.10.19/js/jquery.dataTables.min.js" defer></script>
+     <script type="text/javascript" src="webjars/datatables/1.10.19/js/dataTables.bootstrap4.min.js" defer></script>
++    <script type="text/javascript" src="webjars/noty/3.1.4/lib/noty.min.js" defer></script>
+ </head>
+\ No newline at end of file

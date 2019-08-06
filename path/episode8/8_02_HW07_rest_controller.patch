@@ -1,0 +1,257 @@
+ Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1564603910092)
++++ src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1564603910092)
+@@ -0,0 +1,89 @@
++package ru.javawebinar.topjava.web.meal;
++
++
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.ResultActions;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.service.MealService;
++import ru.javawebinar.topjava.web.AbstractControllerTest;
++import ru.javawebinar.topjava.web.json.JsonUtil;
++
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.MealTestData.*;
++import static ru.javawebinar.topjava.TestUtil.readFromJson;
++import static ru.javawebinar.topjava.TestUtil.readFromJsonMvcResult;
++import static ru.javawebinar.topjava.UserTestData.USER;
++import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
++import static ru.javawebinar.topjava.util.MealsUtil.createWithExcess;
++import static ru.javawebinar.topjava.util.MealsUtil.getWithExcess;
++
++class MealRestControllerTest extends AbstractControllerTest {
++
++    private static final String REST_URL = MealRestController.REST_URL + '/';
++
++    @Autowired
++    private MealService service;
++
++    @Test
++    void get() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + MEAL1_ID))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(result -> assertMatch(readFromJsonMvcResult(result, Meal.class), MEAL1));
++    }
++
++    @Test
++    void delete() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL + MEAL1_ID))
++                .andExpect(status().isNoContent());
++        assertMatch(service.getAll(START_SEQ), MEAL6, MEAL5, MEAL4, MEAL3, MEAL2);
++    }
++
++    @Test
++    void update() throws Exception {
++        Meal updated = getUpdated();
++
++        mockMvc.perform(MockMvcRequestBuilders.put(REST_URL + MEAL1_ID).contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(updated)))
++                .andExpect(status().isNoContent());
++
++        assertMatch(service.get(MEAL1_ID, START_SEQ), updated);
++    }
++
++    @Test
++    void createWithLocation() throws Exception {
++        Meal created = getCreated();
++        ResultActions action = mockMvc.perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(created)));
++
++        Meal returned = readFromJson(action, Meal.class);
++        created.setId(returned.getId());
++
++        assertMatch(returned, created);
++        assertMatch(service.getAll(START_SEQ), created, MEAL6, MEAL5, MEAL4, MEAL3, MEAL2, MEAL1);
++    }
++
++    @Test
++    void getAll() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(contentJson(getWithExcess(MEALS, USER.getCaloriesPerDay())));
++    }
++
++    @Test
++    void getBetween() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + "between?startDateTime=2015-05-30T07:00&endDateTime=2015-05-31T11:00:00"))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(contentJson(createWithExcess(MEAL4, true), createWithExcess(MEAL1, false)));
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1564603634000)
++++ src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1564603676149)
+@@ -42,7 +42,7 @@
+                 .collect(toList());
+     }
+ 
+-    private static MealTo createWithExcess(Meal meal, boolean excess) {
++    public static MealTo createWithExcess(Meal meal, boolean excess) {
+         return new MealTo(meal.getId(), meal.getDateTime(), meal.getDescription(), meal.getCalories(), excess);
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/MealTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/MealTestData.java	(date 1564603634000)
++++ src/test/java/ru/javawebinar/topjava/MealTestData.java	(date 1564603676252)
+@@ -1,12 +1,15 @@
+ package ru.javawebinar.topjava;
+ 
++import org.springframework.test.web.servlet.ResultMatcher;
+ import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.to.MealTo;
+ 
+ import java.time.Month;
+ import java.util.List;
+ 
+ import static java.time.LocalDateTime.of;
+ import static org.assertj.core.api.Assertions.assertThat;
++import static ru.javawebinar.topjava.TestUtil.readListFromJsonMvcResult;
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class MealTestData {
+@@ -43,4 +46,12 @@
+     public static void assertMatch(Iterable<Meal> actual, Iterable<Meal> expected) {
+         assertThat(actual).usingElementComparatorIgnoringFields("user").isEqualTo(expected);
+     }
++
++    public static ResultMatcher contentJson(MealTo... expected) {
++        return contentJson(List.of(expected));
++    }
++
++    public static ResultMatcher contentJson(Iterable<MealTo> expected) {
++        return result -> assertThat(readListFromJsonMvcResult(result, MealTo.class)).isEqualTo(expected);
++    }
+ }
+Index: src/main/java/ru/javawebinar/topjava/to/MealTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/to/MealTo.java	(date 1564603634000)
++++ src/main/java/ru/javawebinar/topjava/to/MealTo.java	(date 1564603676124)
+@@ -4,15 +4,18 @@
+ import java.util.Objects;
+ 
+ public class MealTo {
+-    private final Integer id;
++    private Integer id;
+ 
+-    private final LocalDateTime dateTime;
++    private LocalDateTime dateTime;
+ 
+-    private final String description;
++    private String description;
+ 
+-    private final int calories;
++    private int calories;
+ 
+-    private final boolean excess;
++    private boolean excess;
++
++    public MealTo() {
++    }
+ 
+     public MealTo(Integer id, LocalDateTime dateTime, String description, int calories, boolean excess) {
+         this.id = id;
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1564603634000)
++++ src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1564603676189)
+@@ -1,7 +1,64 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
+-import org.springframework.stereotype.Controller;
++import org.springframework.format.annotation.DateTimeFormat;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.*;
++import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
++import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.to.MealTo;
+ 
+-@Controller
++import java.net.URI;
++import java.time.LocalDateTime;
++import java.util.List;
++
++@RestController
++@RequestMapping(value = MealRestController.REST_URL, produces = MediaType.APPLICATION_JSON_VALUE)
+ public class MealRestController extends AbstractMealController {
++    static final String REST_URL = "/rest/profile/meals";
++
++    @Override
++    @GetMapping("/{id}")
++    public Meal get(@PathVariable int id) {
++        return super.get(id);
++    }
++
++    @Override
++    @DeleteMapping("/{id}")
++    @ResponseStatus(value = HttpStatus.NO_CONTENT)
++    public void delete(@PathVariable int id) {
++        super.delete(id);
++    }
++
++    @Override
++    @GetMapping
++    public List<MealTo> getAll() {
++        return super.getAll();
++    }
++
++    @Override
++    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
++    @ResponseStatus(value = HttpStatus.NO_CONTENT)
++    public void update(@RequestBody Meal meal, @PathVariable int id) {
++        super.update(meal, id);
++    }
++
++    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
++    public ResponseEntity<Meal> createWithLocation(@RequestBody Meal meal) {
++        Meal created = super.create(meal);
++
++        URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
++                .path(REST_URL + "/{id}")
++                .buildAndExpand(created.getId()).toUri();
++
++        return ResponseEntity.created(uriOfNewResource).body(created);
++    }
++
++    @GetMapping(value = "/between")
++    public List<MealTo> getBetween(
++            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
++            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
++        return super.getBetween(startDateTime.toLocalDate(), startDateTime.toLocalTime(), endDateTime.toLocalDate(), endDateTime.toLocalTime());
++    }
+ }
+\ No newline at end of file

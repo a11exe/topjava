@@ -1,0 +1,346 @@
+Index: src/main/webapp/WEB-INF/jsp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/meals.jsp	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/main/webapp/WEB-INF/jsp/meals.jsp	(date 1564600712101)
+@@ -10,7 +10,7 @@
+ <section>
+     <h3><spring:message code="meal.title"/></h3>
+ 
+-    <form method="post" action="meals/filter">
++    <form method="get" action="meals/filter">
+         <dl>
+             <dt><spring:message code="meal.startDate"/>:</dt>
+             <dd><input type="date" name="startDate" value="${param.startDate}"></dd>
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1564587156721)
+@@ -14,7 +14,7 @@
+ class RootControllerTest extends AbstractControllerTest {
+ 
+     @Test
+-    void testUsers() throws Exception {
++    void getUsers() throws Exception {
+         mockMvc.perform(get("/users"))
+                 .andDo(print())
+                 .andExpect(status().isOk())
+Index: src/main/java/ru/javawebinar/topjava/web/RootController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/RootController.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/main/java/ru/javawebinar/topjava/web/RootController.java	(date 1564587156862)
+@@ -25,7 +25,7 @@
+     }
+ 
+     @GetMapping("/users")
+-    public String users(Model model) {
++    public String getUsers(Model model) {
+         model.addAttribute("users", userService.getAll());
+         return "users";
+     }
+@@ -38,7 +38,7 @@
+     }
+ 
+     @GetMapping("/meals")
+-    public String meals(Model model) {
++    public String getMeals(Model model) {
+         model.addAttribute("meals",
+                 MealsUtil.getWithExcess(mealService.getAll(SecurityUtil.authUserId()), SecurityUtil.authUserCaloriesPerDay()));
+         return "meals";
+Index: src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java	(date 1564600712167)
+@@ -53,7 +53,7 @@
+         return "redirect:/meals";
+     }
+ 
+-    @PostMapping("/filter")
++    @GetMapping("/filter")
+     public String getBetween(HttpServletRequest request, Model model) {
+         LocalDate startDate = parseLocalDate(request.getParameter("startDate"));
+         LocalDate endDate = parseLocalDate(request.getParameter("endDate"));
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(date 1564587156914)
+@@ -93,7 +93,7 @@
+     }
+ 
+     @Test
+-    void testValidation() throws Exception {
++    void createWithException() throws Exception {
+         Assumptions.assumeTrue(isJpaBased(), "Validation not supported (JPA only)");
+         validateRootCause(() -> service.create(new Meal(null, of(2015, Month.JUNE, 1, 18, 0), "  ", 300), USER_ID), ConstraintViolationException.class);
+         validateRootCause(() -> service.create(new Meal(null, null, "Description", 300), USER_ID), ConstraintViolationException.class);
+Index: src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java	(date 1564587157000)
+@@ -30,7 +30,7 @@
+     }
+ 
+     @Test
+-    void testDelete() throws Exception {
++    void delete() throws Exception {
+         controller.delete(UserTestData.USER_ID);
+         Collection<User> users = controller.getAll();
+         assertEquals(1, users.size());
+@@ -38,7 +38,7 @@
+     }
+ 
+     @Test
+-    void testDeleteNotFound() throws Exception {
++    void deleteNotFound() throws Exception {
+         assertThrows(NotFoundException.class, () ->
+                 controller.delete(10));
+     }
+Index: src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(date 1564587157031)
+@@ -10,7 +10,7 @@
+ class JsonUtilTest {
+ 
+     @Test
+-    void testReadWriteValue() throws Exception {
++    void readWriteValue() throws Exception {
+         String json = JsonUtil.writeValue(ADMIN_MEAL1);
+         System.out.println(json);
+         Meal meal = JsonUtil.readValue(json, Meal.class);
+@@ -18,7 +18,7 @@
+     }
+ 
+     @Test
+-    void testReadWriteValues() throws Exception {
++    void readWriteValues() throws Exception {
+         String json = JsonUtil.writeValue(MEALS);
+         System.out.println(json);
+         List<Meal> meals = JsonUtil.readValues(json, Meal.class);
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractJpaUserServiceTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractJpaUserServiceTest.java	(date 1564587156807)
+@@ -24,7 +24,7 @@
+     }
+ 
+     @Test
+-    void testValidation() throws Exception {
++    void createWithException() throws Exception {
+         validateRootCause(() -> service.create(new User(null, "  ", "mail@yandex.ru", "password", Role.ROLE_USER)), ConstraintViolationException.class);
+         validateRootCause(() -> service.create(new User(null, "User", "  ", "password", Role.ROLE_USER)), ConstraintViolationException.class);
+         validateRootCause(() -> service.create(new User(null, "User", "mail@yandex.ru", "  ", Role.ROLE_USER)), ConstraintViolationException.class);
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1564600450950)
+@@ -2,12 +2,12 @@
+ 
+ import org.junit.jupiter.api.Test;
+ import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
+-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+@@ -17,24 +17,24 @@
+ class ProfileRestControllerTest extends AbstractControllerTest {
+ 
+     @Test
+-    void testGet() throws Exception {
+-        mockMvc.perform(get(REST_URL))
++    void get() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(contentJson(USER));
+     }
+ 
+     @Test
+-    void testDelete() throws Exception {
+-        mockMvc.perform(delete(REST_URL))
++    void delete() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL))
+                 .andExpect(status().isNoContent());
+         assertMatch(userService.getAll(), ADMIN);
+     }
+ 
+     @Test
+-    void testUpdate() throws Exception {
++    void update() throws Exception {
+         User updated = new User(USER_ID, "newName", "newemail@ya.ru", "newPassword", Role.ROLE_USER);
+-        mockMvc.perform(put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++        mockMvc.perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(updated)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1564600295134)
+@@ -3,6 +3,7 @@
+ import org.junit.jupiter.api.Test;
+ import org.springframework.http.MediaType;
+ import org.springframework.test.web.servlet.ResultActions;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+@@ -10,7 +11,6 @@
+ 
+ import java.util.Collections;
+ 
+-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+@@ -22,8 +22,8 @@
+     private static final String REST_URL = AdminRestController.REST_URL + '/';
+ 
+     @Test
+-    void testGet() throws Exception {
+-        mockMvc.perform(get(REST_URL + ADMIN_ID))
++    void get() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 // https://jira.spring.io/browse/SPR-14472
+@@ -32,27 +32,27 @@
+     }
+ 
+     @Test
+-    void testGetByEmail() throws Exception {
+-        mockMvc.perform(get(REST_URL + "by?email=" + USER.getEmail()))
++    void getByEmail() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + "by?email=" + USER.getEmail()))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(contentJson(USER));
+     }
+ 
+     @Test
+-    void testDelete() throws Exception {
+-        mockMvc.perform(delete(REST_URL + USER_ID))
++    void delete() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+         assertMatch(userService.getAll(), ADMIN);
+     }
+ 
+     @Test
+-    void testUpdate() throws Exception {
++    void update() throws Exception {
+         User updated = new User(USER);
+         updated.setName("UpdatedName");
+         updated.setRoles(Collections.singletonList(Role.ROLE_ADMIN));
+-        mockMvc.perform(put(REST_URL + USER_ID)
++        mockMvc.perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(updated)))
+                 .andExpect(status().isNoContent());
+@@ -61,9 +61,9 @@
+     }
+ 
+     @Test
+-    void testCreate() throws Exception {
++    void createWithLocation() throws Exception {
+         User expected = new User(null, "New", "new@gmail.com", "newPass", Role.ROLE_USER, Role.ROLE_ADMIN);
+-        ResultActions action = mockMvc.perform(post(REST_URL)
++        ResultActions action = mockMvc.perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(expected)))
+                 .andExpect(status().isCreated());
+@@ -76,8 +76,8 @@
+     }
+ 
+     @Test
+-    void testGetAll() throws Exception {
+-        mockMvc.perform(get(REST_URL))
++    void getAll() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(contentJson(ADMIN, USER));
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(date 1564587156644)
+@@ -14,14 +14,14 @@
+ @ActiveProfiles(DATAJPA)
+ class DataJpaUserServiceTest extends AbstractJpaUserServiceTest {
+     @Test
+-    void testGetWithMeals() throws Exception {
++    void getWithMeals() throws Exception {
+         User admin = service.getWithMeals(ADMIN_ID);
+         assertMatch(admin, ADMIN);
+         MealTestData.assertMatch(admin.getMeals(), MealTestData.ADMIN_MEAL2, MealTestData.ADMIN_MEAL1);
+     }
+ 
+     @Test
+-    void testGetWithMealsNotFound() throws Exception {
++    void getWithMealsNotFound() throws Exception {
+         assertThrows(NotFoundException.class, () ->
+                 service.getWithMeals(1));
+     }
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java	(revision 24a407be63b8a4dab0ad59792493cde8e7b6cfec)
++++ src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java	(date 1564587156966)
+@@ -15,14 +15,14 @@
+ @ActiveProfiles(DATAJPA)
+ class DataJpaMealServiceTest extends AbstractMealServiceTest {
+     @Test
+-    void testGetWithUser() throws Exception {
++    void getWithUser() throws Exception {
+         Meal adminMeal = service.getWithUser(ADMIN_MEAL_ID, ADMIN_ID);
+         assertMatch(adminMeal, ADMIN_MEAL1);
+         UserTestData.assertMatch(adminMeal.getUser(), UserTestData.ADMIN);
+     }
+ 
+     @Test
+-    void testGetWithUserNotFound() throws Exception {
++    void getWithUserNotFound() throws Exception {
+         assertThrows(NotFoundException.class, () ->
+                 service.getWithUser(MEAL1_ID, ADMIN_ID));
+     }
