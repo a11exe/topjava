@@ -1,0 +1,100 @@
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1565210503000)
++++ src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1565211210605)
+@@ -1,11 +1,22 @@
+ package ru.javawebinar.topjava.to;
+ 
++import javax.validation.constraints.Email;
++import javax.validation.constraints.NotBlank;
++import javax.validation.constraints.Size;
++
+ public class UserTo extends BaseTo {
+ 
++    @NotBlank
++    @Size(min = 2, max = 100)
+     private String name;
+ 
++    @Email
++    @NotBlank
++    @Size(max = 100)
+     private String email;
+ 
++    @NotBlank
++    @Size(min = 5, max = 32, message = "length must be between 5 and 32 characters")
+     private String password;
+ 
+     public UserTo() {
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1565210503000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1565210525630)
+@@ -2,12 +2,16 @@
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
++import org.springframework.validation.BindingResult;
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+ import ru.javawebinar.topjava.util.UserUtil;
+ 
++import javax.validation.Valid;
+ import java.util.List;
++import java.util.StringJoiner;
+ 
+ @RestController
+ @RequestMapping("/ajax/admin/users")
+@@ -33,13 +37,27 @@
+     }
+ 
+     @PostMapping
+-    @ResponseStatus(value = HttpStatus.NO_CONTENT)
+-    public void createOrUpdate(UserTo userTo) {
++    public ResponseEntity<String> createOrUpdate(@Valid UserTo userTo, BindingResult result) {
++        if (result.hasErrors()) {
++            StringJoiner joiner = new StringJoiner("<br>");
++            result.getFieldErrors().forEach(
++                    fe -> {
++                        String msg = fe.getDefaultMessage();
++                        if (msg != null) {
++                            if (!msg.startsWith(fe.getField())) {
++                                msg = fe.getField() + ' ' + msg;
++                            }
++                            joiner.add(msg);
++                        }
++                    });
++            return ResponseEntity.unprocessableEntity().body(joiner.toString());
++        }
+         if (userTo.isNew()) {
+             super.create(UserUtil.createNewFromTo(userTo));
+         } else {
+             super.update(userTo, userTo.id());
+         }
++        return ResponseEntity.ok().build();
+     }
+ 
+     @Override
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/resources/js/topjava.common.js	(date 1565210503000)
++++ src/main/webapp/resources/js/topjava.common.js	(date 1565210525770)
+@@ -75,7 +75,7 @@
+ function failNoty(jqXHR) {
+     closeNoty();
+     failedNote = new Noty({
+-        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;Error status: " + jqXHR.status,
++        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;Error status: " + jqXHR.status + (jqXHR.responseJSON ? "<br>" + jqXHR.responseJSON : ""),
+         type: "error",
+         layout: "bottomRight"
+     }).show();

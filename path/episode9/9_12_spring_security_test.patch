@@ -1,0 +1,309 @@
+Index: src/test/java/ru/javawebinar/topjava/TestUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/TestUtil.java	(date 1565214024000)
++++ src/test/java/ru/javawebinar/topjava/TestUtil.java	(date 1565214326154)
+@@ -1,7 +1,12 @@
+ package ru.javawebinar.topjava;
+ 
++import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
++import org.springframework.security.core.context.SecurityContextHolder;
++import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+ import org.springframework.test.web.servlet.MvcResult;
+ import org.springframework.test.web.servlet.ResultActions;
++import org.springframework.test.web.servlet.request.RequestPostProcessor;
++import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
+ import java.io.UnsupportedEncodingException;
+@@ -23,4 +28,17 @@
+     public static <T> List<T> readListFromJsonMvcResult(MvcResult result, Class<T> clazz) throws UnsupportedEncodingException {
+         return JsonUtil.readValues(getContent(result), clazz);
+     }
++
++    public static void mockAuthorize(User user) {
++        SecurityContextHolder.getContext().setAuthentication(
++                new UsernamePasswordAuthenticationToken(new AuthorizedUser(user), null, user.getRoles()));
++    }
++
++    public static RequestPostProcessor userHttpBasic(User user) {
++        return SecurityMockMvcRequestPostProcessors.httpBasic(user.getEmail(), user.getPassword());
++    }
++
++    public static RequestPostProcessor userAuth(User user) {
++        return SecurityMockMvcRequestPostProcessors.authentication(new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword()));
++    }
+ }
+Index: src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1565214024000)
++++ src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1565214326018)
+@@ -16,6 +16,8 @@
+ 
+ import javax.annotation.PostConstruct;
+ 
++import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
++
+ @SpringJUnitWebConfig(locations = {
+         "classpath:spring/spring-app.xml",
+         "classpath:spring/spring-mvc.xml",
+@@ -53,6 +55,7 @@
+         mockMvc = MockMvcBuilders
+                 .webAppContextSetup(webApplicationContext)
+                 .addFilter(CHARACTER_ENCODING_FILTER)
++                .apply(springSecurity())
+                 .build();
+     }
+ 
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1565214024000)
++++ src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1565214618530)
+@@ -9,10 +9,10 @@
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
+-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ import static ru.javawebinar.topjava.web.user.ProfileRestController.REST_URL;
+ 
+@@ -20,15 +20,23 @@
+ 
+     @Test
+     void get() throws Exception {
+-        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL))
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL)
++                .with(userHttpBasic(USER)))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(contentJson(USER));
+     }
+ 
++    @Test
++    void getUnAuth() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isUnauthorized());
++    }
++
+     @Test
+     void delete() throws Exception {
+-        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL))
++        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL)
++                .with(userHttpBasic(USER)))
+                 .andExpect(status().isNoContent());
+         assertMatch(userService.getAll(), ADMIN);
+     }
+@@ -36,7 +44,8 @@
+     @Test
+     void update() throws Exception {
+         UserTo updatedTo = new UserTo(null, "newName", "newemail@ya.ru", "newPassword", 1500);
+-        mockMvc.perform(put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++        mockMvc.perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(USER))
+                 .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1565214024000)
++++ src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1565215328459)
+@@ -16,6 +16,7 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+ import static ru.javawebinar.topjava.TestUtil.readFromJson;
++import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ class AdminRestControllerTest extends AbstractControllerTest {
+@@ -24,7 +25,8 @@
+ 
+     @Test
+     void get() throws Exception {
+-        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID))
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID)
++                .with(userHttpBasic(ADMIN)))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 // https://jira.spring.io/browse/SPR-14472
+@@ -34,20 +36,35 @@
+ 
+     @Test
+     void getByEmail() throws Exception {
+-        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + "by?email=" + USER.getEmail()))
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL + "by?email=" + ADMIN.getEmail())
++                .with(userHttpBasic(ADMIN)))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+-                .andExpect(contentJson(USER));
++                .andExpect(contentJson(ADMIN));
+     }
+ 
+     @Test
+     void delete() throws Exception {
+-        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID))
++        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID)
++                .with(userHttpBasic(ADMIN)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+         assertMatch(userService.getAll(), ADMIN);
+     }
+ 
++    @Test
++    void getUnAuth() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isUnauthorized());
++    }
++
++    @Test
++    void getForbidden() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL)
++                .with(userHttpBasic(USER)))
++                .andExpect(status().isForbidden());
++    }
++
+     @Test
+     void update() throws Exception {
+         User updated = new User(USER);
+@@ -55,6 +72,7 @@
+         updated.setRoles(Collections.singletonList(Role.ROLE_ADMIN));
+         mockMvc.perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
+                 .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(ADMIN))
+                 .content(JsonUtil.writeValue(updated)))
+                 .andExpect(status().isNoContent());
+ 
+@@ -66,6 +84,7 @@
+         User expected = new User(null, "New", "new@gmail.com", "newPass", Role.ROLE_USER, Role.ROLE_ADMIN);
+         ResultActions action = mockMvc.perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(ADMIN))
+                 .content(JsonUtil.writeValue(expected)))
+                 .andExpect(status().isCreated());
+ 
+@@ -78,7 +97,8 @@
+ 
+     @Test
+     void getAll() throws Exception {
+-        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL))
++        mockMvc.perform(MockMvcRequestBuilders.get(REST_URL)
++                .with(userHttpBasic(ADMIN)))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(contentJson(ADMIN, USER));
+@@ -87,7 +107,8 @@
+     @Test
+     void enable() throws Exception {
+         mockMvc.perform(MockMvcRequestBuilders.patch(REST_URL + USER_ID).param("enabled", "false")
+-                .contentType(MediaType.APPLICATION_JSON))
++                .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(ADMIN)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+ 
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1565214024000)
++++ src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1565214681501)
+@@ -6,22 +6,35 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+ import static ru.javawebinar.topjava.MealTestData.MEALS;
++import static ru.javawebinar.topjava.TestUtil.userAuth;
++import static ru.javawebinar.topjava.UserTestData.ADMIN;
++import static ru.javawebinar.topjava.UserTestData.USER;
+ import static ru.javawebinar.topjava.util.MealsUtil.getWithExcess;
+ 
+ class RootControllerTest extends AbstractControllerTest {
+ 
+     @Test
+     void getUsers() throws Exception {
+-        mockMvc.perform(get("/users"))
++        mockMvc.perform(get("/users")
++                .with(userAuth(ADMIN)))
+                 .andDo(print())
+                 .andExpect(status().isOk())
+                 .andExpect(view().name("users"))
+                 .andExpect(forwardedUrl("/WEB-INF/jsp/users.jsp"));
+     }
+ 
++    @Test
++    void unAuth() throws Exception {
++        mockMvc.perform(get("/users"))
++                .andDo(print())
++                .andExpect(status().is3xxRedirection())
++                .andExpect(redirectedUrl("http://localhost/login"));
++    }
++
+     @Test
+     void getMeals() throws Exception {
+-        mockMvc.perform(get("/meals"))
++        mockMvc.perform(get("/meals")
++                .with(userAuth(USER)))
+                 .andDo(print())
+                 .andExpect(status().isOk())
+                 .andExpect(view().name("meals"))
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1565214024000)
++++ pom.xml	(date 1565214798011)
+@@ -311,6 +311,13 @@
+             <artifactId>spring-test</artifactId>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>org.springframework.security</groupId>
++            <artifactId>spring-security-test</artifactId>
++            <version>${spring.security.version}</version>
++            <scope>test</scope>
++        </dependency>
++
+         <dependency>
+             <groupId>org.assertj</groupId>
+             <artifactId>assertj-core</artifactId>
+Index: src/test/java/ru/javawebinar/topjava/SpringMain.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/SpringMain.java	(date 1565214024000)
++++ src/test/java/ru/javawebinar/topjava/SpringMain.java	(date 1565214326094)
+@@ -11,6 +11,9 @@
+ import java.util.Arrays;
+ import java.util.List;
+ 
++import static ru.javawebinar.topjava.TestUtil.mockAuthorize;
++import static ru.javawebinar.topjava.UserTestData.USER;
++
+ public class SpringMain {
+     public static void main(String[] args) {
+         // java 7 automatic resource management
+@@ -19,6 +22,8 @@
+             appCtx.load("spring/spring-app.xml", "spring/inmemory.xml");
+             appCtx.refresh();
+ 
++            mockAuthorize(USER);
++
+             System.out.println("Bean definition names: " + Arrays.toString(appCtx.getBeanDefinitionNames()));
+             AdminRestController adminUserController = appCtx.getBean(AdminRestController.class);
+             adminUserController.getAll();

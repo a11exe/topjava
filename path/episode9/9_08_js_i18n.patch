@@ -1,0 +1,155 @@
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/users.jsp	(date 1565211826000)
++++ src/main/webapp/WEB-INF/jsp/users.jsp	(date 1565211846805)
+@@ -37,7 +37,7 @@
+     <div class="modal-dialog">
+         <div class="modal-content">
+             <div class="modal-header">
+-                <h4 class="modal-title"><spring:message code="user.add"/></h4>
++                <h4 class="modal-title" id="modalTitle"></h4>
+                 <button type="button" class="close" data-dismiss="modal">&times;</button>
+             </div>
+             <div class="modal-body">
+@@ -78,4 +78,13 @@
+ </div>
+ <jsp:include page="fragments/footer.jsp"/>
+ </body>
++<script type="text/javascript">
++    const i18n = [];
++    i18n["addTitle"] = '<spring:message code="user.add"/>';
++    i18n["editTitle"] = '<spring:message code="user.edit"/>';
++
++    <c:forEach var="key" items='<%=new String[]{"common.deleted","common.saved","common.enabled","common.disabled","common.errorStatus","common.confirm"}%>'>
++    i18n["${key}"] = "<spring:message code="${key}"/>";
++    </c:forEach>
++</script>
+ </html>
+\ No newline at end of file
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1565211826000)
++++ config/messages/app_ru.properties	(date 1565211846639)
+@@ -26,5 +26,11 @@
+ 
+ common.add=Добавить
+ common.select=Выбрать
++common.deleted=Запись удалена
++common.saved=Запись сохранена
++common.enabled=Запись активирована
++common.disabled=Запись деактивирована
++common.errorStatus=Статус ошибки
++common.confirm=Вы уверены?
+ common.save=Сохранить
+ common.cancel=Отменить
+\ No newline at end of file
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app.properties	(date 1565211826000)
++++ config/messages/app.properties	(date 1565211846533)
+@@ -26,5 +26,11 @@
+ 
+ common.add=Add
+ common.select=Select
++common.deleted=Record deleted
++common.saved=Record saved
++common.enabled=Record enabled
++common.disabled=Record disabled
++common.errorStatus=Error status
++common.confirm=Are you sure?
+ common.save=Save
+ common.cancel=Cancel
+\ No newline at end of file
+Index: src/main/webapp/resources/js/topjava.users.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/resources/js/topjava.users.js	(date 1565211826000)
++++ src/main/webapp/resources/js/topjava.users.js	(date 1565211846739)
+@@ -9,7 +9,7 @@
+         data: "enabled=" + enabled
+     }).done(function () {
+         chkbox.closest("tr").attr("data-userEnabled", enabled);
+-        successNoty(enabled ? "Enabled" : "Disabled");
++        successNoty(enabled ? "common.enabled" : "common.disabled");
+     }).fail(function () {
+         $(chkbox).prop("checked", !enabled);
+     });
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/resources/js/topjava.common.js	(date 1565211826000)
++++ src/main/webapp/resources/js/topjava.common.js	(date 1565211846696)
+@@ -12,11 +12,13 @@
+ }
+ 
+ function add() {
++    $("#modalTitle").html(i18n["addTitle"]);
+     form.find(":input").val("");
+     $("#editRow").modal();
+ }
+ 
+ function updateRow(id) {
++    $("#modalTitle").html(i18n["editTitle"]);
+     $.get(context.ajaxUrl + id, function (data) {
+         $.each(data, function (key, value) {
+             form.find("input[name='" + key + "']").val(value);
+@@ -26,13 +28,13 @@
+ }
+ 
+ function deleteRow(id) {
+-    if (confirm('Are you sure?')) {
++    if (confirm(i18n['common.confirm'])) {
+         $.ajax({
+             url: context.ajaxUrl + id,
+             type: "DELETE"
+         }).done(function () {
+             context.updateTable();
+-            successNoty("Deleted");
++            successNoty("common.deleted");
+         });
+     }
+ }
+@@ -49,7 +51,7 @@
+     }).done(function () {
+         $("#editRow").modal("hide");
+         context.updateTable();
+-        successNoty("Saved");
++        successNoty("common.saved");
+     });
+ }
+ 
+@@ -62,10 +64,10 @@
+     }
+ }
+ 
+-function successNoty(text) {
++function successNoty(key) {
+     closeNoty();
+     new Noty({
+-        text: "<span class='fa fa-lg fa-check'></span> &nbsp;" + text,
++        text: "<span class='fa fa-lg fa-check'></span> &nbsp;" + i18n[key],
+         type: 'success',
+         layout: "bottomRight",
+         timeout: 1000
+@@ -75,7 +77,7 @@
+ function failNoty(jqXHR) {
+     closeNoty();
+     failedNote = new Noty({
+-        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;Error status: " + jqXHR.status + (jqXHR.responseJSON ? "<br>" + jqXHR.responseJSON : ""),
++        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;" + i18n["common.errorStatus"] + ": " + jqXHR.status + (jqXHR.responseJSON ? "<br>" + jqXHR.responseJSON : ""),
+         type: "error",
+         layout: "bottomRight"
+     }).show();

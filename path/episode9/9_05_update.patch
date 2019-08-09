@@ -1,0 +1,447 @@
+Index: src/main/java/ru/javawebinar/topjava/HasId.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/HasId.java	(date 1565208022906)
++++ src/main/java/ru/javawebinar/topjava/HasId.java	(date 1565208022906)
+@@ -0,0 +1,19 @@
++package ru.javawebinar.topjava;
++
++import org.springframework.util.Assert;
++
++public interface HasId {
++    Integer getId();
++
++    void setId(Integer id);
++
++    default boolean isNew() {
++        return getId() == null;
++    }
++
++    // doesn't work for hibernate lazy proxy
++    default int id() {
++        Assert.notNull(getId(), "Entity must has id");
++        return getId();
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/to/BaseTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/to/BaseTo.java	(date 1565208022568)
++++ src/main/java/ru/javawebinar/topjava/to/BaseTo.java	(date 1565208022568)
+@@ -0,0 +1,24 @@
++package ru.javawebinar.topjava.to;
++
++import ru.javawebinar.topjava.HasId;
++
++public abstract class BaseTo implements HasId {
++    protected Integer id;
++
++    public BaseTo() {
++    }
++
++    public BaseTo(Integer id) {
++        this.id = id;
++    }
++
++    @Override
++    public Integer getId() {
++        return id;
++    }
++
++    @Override
++    public void setId(Integer id) {
++        this.id = id;
++    }
++}
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/users.jsp	(date 1565121055000)
++++ src/main/webapp/WEB-INF/jsp/users.jsp	(date 1565208023015)
+@@ -38,7 +38,7 @@
+                     <td><input type="checkbox"
+                                <c:if test="${user.enabled}">checked</c:if> onclick="enable($(this), ${user.id})"/></td>
+                     <td><fmt:formatDate value="${user.registered}" pattern="dd-MMMM-yyyy"/></td>
+-                    <td><a><span class="fa fa-pencil"></span></a></td>
++                    <td><a onclick=updateRow(${user.id})><span class="fa fa-pencil"></span></a></td>
+                     <td><a onclick="deleteRow(${user.id})"><span class="fa fa-remove"></span></a></td>
+                 </tr>
+             </c:forEach>
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1565210314508)
+@@ -1,7 +1,7 @@
+ package ru.javawebinar.topjava.util;
+ 
+ 
+-import ru.javawebinar.topjava.model.AbstractBaseEntity;
++import ru.javawebinar.topjava.HasId;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ public class ValidationUtil {
+@@ -28,18 +28,18 @@
+         }
+     }
+ 
+-    public static void checkNew(AbstractBaseEntity entity) {
+-        if (!entity.isNew()) {
+-            throw new IllegalArgumentException(entity + " must be new (id=null)");
++    public static void checkNew(HasId bean) {
++        if (!bean.isNew()) {
++            throw new IllegalArgumentException(bean + " must be new (id=null)");
+         }
+     }
+ 
+-    public static void assureIdConsistent(AbstractBaseEntity entity, int id) {
++    public static void assureIdConsistent(HasId bean, int id) {
+ //      conservative when you reply, but accept liberally (http://stackoverflow.com/a/32728226/548473)
+-        if (entity.isNew()) {
+-            entity.setId(id);
+-        } else if (entity.getId() != id) {
+-            throw new IllegalArgumentException(entity + " must be with id=" + id);
++        if (bean.isNew()) {
++            bean.setId(id);
++        } else if (bean.id() != id) {
++            throw new IllegalArgumentException(bean + " must be with id=" + id);
+         }
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/util/UserUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/UserUtil.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/util/UserUtil.java	(date 1565208022683)
+@@ -11,4 +11,11 @@
+     public static User createNewFromTo(UserTo userTo) {
+         return new User(null, userTo.getName(), userTo.getEmail().toLowerCase(), userTo.getPassword(), Role.ROLE_USER);
+     }
++
++    public static User updateFromTo(User user, UserTo userTo) {
++        user.setName(userTo.getName());
++        user.setEmail(userTo.getEmail().toLowerCase());
++        user.setPassword(userTo.getPassword());
++        return user;
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1565208022753)
+@@ -5,6 +5,7 @@
+ import org.springframework.beans.factory.annotation.Autowired;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
++import ru.javawebinar.topjava.to.UserTo;
+ 
+ import java.util.List;
+ 
+@@ -44,6 +45,12 @@
+         service.update(user);
+     }
+ 
++    public void update(UserTo userTo, int id) {
++        log.info("update {} with id={}", userTo, id);
++        assureIdConsistent(userTo, id);
++        service.update(userTo);
++    }
++
+     public void enable(int id, boolean enabled) {
+         log.info(enabled ? "enable {}" : "disable {}", id);
+         service.enable(id, enabled);
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1565208022639)
+@@ -1,7 +1,6 @@
+ package ru.javawebinar.topjava.to;
+ 
+-public class UserTo {
+-    private Integer id;
++public class UserTo extends BaseTo {
+ 
+     private String name;
+ 
+@@ -13,20 +12,12 @@
+     }
+ 
+     public UserTo(Integer id, String name, String email, String password) {
+-        this.id = id;
++        super(id);
+         this.name = name;
+         this.email = email;
+         this.password = password;
+     }
+ 
+-    public Integer getId() {
+-        return id;
+-    }
+-
+-    public void setId(Integer id) {
+-        this.id = id;
+-    }
+-
+     public String getPassword() {
+         return password;
+     }
+@@ -51,10 +42,6 @@
+         this.email = email;
+     }
+ 
+-    public boolean isNew() {
+-        return id == null;
+-    }
+-
+     @Override
+     public String toString() {
+         return "UserTo{" +
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1565121055000)
++++ src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1565210486445)
+@@ -3,11 +3,13 @@
+ import org.junit.jupiter.api.Test;
+ import org.springframework.http.MediaType;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+-import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.to.UserTo;
++import ru.javawebinar.topjava.util.UserUtil;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+@@ -33,12 +35,12 @@
+ 
+     @Test
+     void update() throws Exception {
+-        User updated = new User(USER_ID, "newName", "newemail@ya.ru", "newPassword", Role.ROLE_USER);
+-        mockMvc.perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
+-                .content(JsonUtil.writeValue(updated)))
++        UserTo updatedTo = new UserTo(null, "newName", "newemail@ya.ru", "newPassword");
++        mockMvc.perform(put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+ 
+-        assertMatch(userService.getByEmail("newemail@ya.ru"), updated);
++        assertMatch(userService.getByEmail("newemail@ya.ru"), UserUtil.updateFromTo(new User(USER), updatedTo));
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1565210314436)
+@@ -19,6 +19,12 @@
+         return super.getAll();
+     }
+ 
++    @Override
++    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
++    public User get(@PathVariable("id") int id) {
++        return super.get(id);
++    }
++
+     @Override
+     @DeleteMapping("/{id}")
+     @ResponseStatus(value = HttpStatus.NO_CONTENT)
+@@ -31,6 +37,8 @@
+     public void createOrUpdate(UserTo userTo) {
+         if (userTo.isNew()) {
+             super.create(UserUtil.createNewFromTo(userTo));
++        } else {
++            super.update(userTo, userTo.id());
+         }
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1565210314475)
+@@ -8,6 +8,8 @@
+ import org.springframework.util.Assert;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
++import ru.javawebinar.topjava.to.UserTo;
++import ru.javawebinar.topjava.util.UserUtil;
+ 
+ import java.util.List;
+ 
+@@ -52,7 +54,15 @@
+     @CacheEvict(value = "users", allEntries = true)
+     public void update(User user) {
+         Assert.notNull(user, "user must not be null");
+-        checkNotFoundWithId(repository.save(user), user.getId());
++//      checkNotFoundWithId : check works only for JDBC, disabled
++        repository.save(user);
++    }
++
++    @CacheEvict(value = "users", allEntries = true)
++    @Transactional
++    public void update(UserTo userTo) {
++        User user = get(userTo.id());
++        repository.save(UserUtil.updateFromTo(user, userTo));
+     }
+ 
+     @CacheEvict(value = "users", allEntries = true)
+Index: src/main/java/ru/javawebinar/topjava/to/MealTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/to/MealTo.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/to/MealTo.java	(date 1565208022609)
+@@ -3,8 +3,7 @@
+ import java.time.LocalDateTime;
+ import java.util.Objects;
+ 
+-public class MealTo {
+-    private Integer id;
++public class MealTo extends BaseTo {
+ 
+     private LocalDateTime dateTime;
+ 
+@@ -18,17 +17,13 @@
+     }
+ 
+     public MealTo(Integer id, LocalDateTime dateTime, String description, int calories, boolean excess) {
+-        this.id = id;
++        super(id);
+         this.dateTime = dateTime;
+         this.description = description;
+         this.calories = calories;
+         this.excess = excess;
+     }
+ 
+-    public Integer getId() {
+-        return id;
+-    }
+-
+     public LocalDateTime getDateTime() {
+         return dateTime;
+     }
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/resources/js/topjava.common.js	(date 1565121055000)
++++ src/main/webapp/resources/js/topjava.common.js	(date 1565208022960)
+@@ -16,6 +16,15 @@
+     $("#editRow").modal();
+ }
+ 
++function updateRow(id) {
++    $.get(context.ajaxUrl + id, function (data) {
++        $.each(data, function (key, value) {
++            form.find("input[name='" + key + "']").val(value);
++        });
++        $('#editRow').modal();
++    });
++}
++
+ function deleteRow(id) {
+     if (confirm('Are you sure?')) {
+         $.ajax({
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1565208006246)
+@@ -1,7 +1,7 @@
+ package ru.javawebinar.topjava.model;
+ 
+ import org.hibernate.Hibernate;
+-import org.springframework.data.domain.Persistable;
++import ru.javawebinar.topjava.HasId;
+ 
+ import javax.persistence.*;
+ 
+@@ -9,7 +9,7 @@
+ // http://stackoverflow.com/questions/594597/hibernate-annotations-which-is-better-field-or-property-access
+ @Access(AccessType.FIELD)
+ //@JsonAutoDetect(fieldVisibility = ANY, getterVisibility = NONE, isGetterVisibility = NONE, setterVisibility = NONE)
+-public abstract class AbstractBaseEntity implements Persistable<Integer> {
++public abstract class AbstractBaseEntity implements HasId {
+     public static final int START_SEQ = 100000;
+ 
+     @Id
+@@ -28,6 +28,7 @@
+         this.id = id;
+     }
+ 
++    @Override
+     public void setId(Integer id) {
+         this.id = id;
+     }
+@@ -37,11 +38,6 @@
+         return id;
+     }
+ 
+-    @Override
+-    public boolean isNew() {
+-        return this.id == null;
+-    }
+-
+     @Override
+     public String toString() {
+         return getClass().getSimpleName() + ":" + id;
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(date 1565121055000)
++++ src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(date 1565208022838)
+@@ -4,6 +4,7 @@
+ import org.springframework.http.MediaType;
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.to.UserTo;
+ 
+ import static ru.javawebinar.topjava.web.SecurityUtil.authUserId;
+ 
+@@ -25,8 +26,8 @@
+ 
+     @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void update(@RequestBody User user) {
+-        super.update(user, authUserId());
++    public void update(@RequestBody UserTo userTo) {
++        super.update(userTo, authUserId());
+     }
+ 
+     @GetMapping(value = "/text")
