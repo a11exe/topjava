@@ -1,3 +1,4 @@
+// noinspection JSAnnotator
 let context, form;
 
 function makeEditable(ctx) {
