@@ -14,7 +14,7 @@ import java.util.Objects;
 public class MealTo extends BaseTo {
 
     @PastOrPresent
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime dateTime;
 
     @NotBlank

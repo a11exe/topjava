@@ -1,5 +1,17 @@
 const mealAjaxUrl = "ajax/profile/meals/";
 
+$(document).ready(function() {
+    jQuery('#dateTime').datetimepicker({
+        format:'Y-m-d H:i:s'
+    });
+    jQuery('#startDate').datetimepicker({
+        format:'Y-m-d'
+    });
+    jQuery('#endDate').datetimepicker({
+        format:'Y-m-d'
+    });
+});
+
 function updateFilteredTable() {
     $.ajax({
         type: "GET",
