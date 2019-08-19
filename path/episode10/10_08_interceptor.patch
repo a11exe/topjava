@@ -1,0 +1,95 @@
+Index: src/main/java/ru/javawebinar/topjava/web/interceptor/ModelInterceptor.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/interceptor/ModelInterceptor.java	(date 1565836850147)
++++ src/main/java/ru/javawebinar/topjava/web/interceptor/ModelInterceptor.java	(date 1565836850147)
+@@ -0,0 +1,25 @@
++package ru.javawebinar.topjava.web.interceptor;
++
++import org.springframework.web.servlet.ModelAndView;
++import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
++import ru.javawebinar.topjava.AuthorizedUser;
++import ru.javawebinar.topjava.web.SecurityUtil;
++
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++
++/**
++ * This interceptor adds userTo to the model of every requests
++ */
++public class ModelInterceptor extends HandlerInterceptorAdapter {
++
++    @Override
++    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
++        if (modelAndView != null && !modelAndView.isEmpty()) {
++            AuthorizedUser authorizedUser = SecurityUtil.safeGet();
++            if (authorizedUser != null) {
++                modelAndView.getModelMap().addAttribute("userTo", authorizedUser.getUserTo());
++            }
++        }
++    }
++}
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app.properties	(date 1565836837000)
++++ config/messages/app.properties	(date 1565836850133)
+@@ -1,6 +1,7 @@
+ app.title=Calories management
+ app.footer=Internship <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> application
+ app.login=Login as
++app.profile=profile
+ 
+ user.title=Users
+ user.edit=Edit user
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-mvc.xml	(date 1565836837000)
++++ src/main/resources/spring/spring-mvc.xml	(date 1565836850154)
+@@ -69,4 +69,8 @@
+         <property name="basenames" value="file:///#{systemEnvironment['TOPJAVA_ROOT']}/config/messages/app"/>
+         <property name="fallbackToSystemLocale" value="false"/>
+     </bean>
++
++    <mvc:interceptors>
++        <bean class="ru.javawebinar.topjava.web.interceptor.ModelInterceptor"/>
++    </mvc:interceptors>
+ </beans>
+\ No newline at end of file
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1565836837000)
++++ config/messages/app_ru.properties	(date 1565836850140)
+@@ -1,6 +1,7 @@
+ app.title=Подсчет калорий
+ app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
+ app.login=Зайти как
++app.profile=профиль
+ 
+ user.title=Пользователи
+ user.edit=Редактировать пользователя
+Index: src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(date 1565836837000)
++++ src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(date 1565836872962)
+@@ -10,6 +10,7 @@
+                 <sec:authorize access="hasRole('ROLE_ADMIN')">
+                     <a class="btn btn-info mr-1" href="users"><spring:message code="user.title"/></a>
+                 </sec:authorize>
++                <a class="btn btn-info mr-1" href="profile">${userTo.name} <spring:message code="app.profile"/></a>
+                 <a class="btn btn-primary my-1" href="logout">
+                     <span class="fa fa-sign-out"></span>
+                 </a>

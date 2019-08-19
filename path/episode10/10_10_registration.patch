@@ -1,0 +1,315 @@
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1565838667000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1565840803450)
+@@ -7,7 +7,6 @@
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+-import ru.javawebinar.topjava.util.UserUtil;
+ import ru.javawebinar.topjava.util.ValidationUtil;
+ 
+ import javax.validation.Valid;
+@@ -42,7 +41,7 @@
+             return ValidationUtil.getErrorResponse(result);
+         }
+         if (userTo.isNew()) {
+-            super.create(UserUtil.createNewFromTo(userTo));
++            super.create(userTo);
+         } else {
+             super.update(userTo, userTo.id());
+         }
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(date 1565838667000)
++++ src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(date 1565840803455)
+@@ -2,10 +2,14 @@
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
+ import org.springframework.web.bind.annotation.*;
++import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+ 
++import java.net.URI;
++
+ import static ru.javawebinar.topjava.web.SecurityUtil.authUserId;
+ 
+ @RestController
+@@ -24,6 +28,17 @@
+         super.delete(authUserId());
+     }
+ 
++    @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
++    @ResponseStatus(value = HttpStatus.CREATED)
++    public ResponseEntity<User> register(@RequestBody UserTo userTo) {
++        User created = super.create(userTo);
++        URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
++                .path(REST_URL + "/{id}")
++                .buildAndExpand(created.getId()).toUri();
++
++        return ResponseEntity.created(uriOfNewResource).body(created);
++    }
++
+     @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+     public void update(@RequestBody UserTo userTo) {
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1565838667000)
++++ src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1565840803512)
+@@ -2,6 +2,7 @@
+ 
+ import org.junit.jupiter.api.Test;
+ import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.ResultActions;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+@@ -12,6 +13,7 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.TestUtil.readFromJson;
+ import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ import static ru.javawebinar.topjava.web.user.ProfileRestController.REST_URL;
+@@ -41,6 +43,24 @@
+         assertMatch(userService.getAll(), ADMIN);
+     }
+ 
++    @Test
++    void register() throws Exception {
++        UserTo createdTo = new UserTo(null, "newName", "newemail@ya.ru", "newPassword", 1500);
++
++        ResultActions action = mockMvc.perform(MockMvcRequestBuilders.post(REST_URL + "/register")
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(createdTo)))
++                .andDo(print())
++                .andExpect(status().isCreated());
++        User returned = readFromJson(action, User.class);
++
++        User created = UserUtil.createNewFromTo(createdTo);
++        created.setId(returned.getId());
++
++        assertMatch(returned, created);
++        assertMatch(userService.getByEmail("newemail@ya.ru"), created);
++    }
++
+     @Test
+     void update() throws Exception {
+         UserTo updatedTo = new UserTo(null, "newName", "newemail@ya.ru", "newPassword", 1500);
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1565838667000)
++++ src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1565840869412)
+@@ -1,6 +1,7 @@
+ package ru.javawebinar.topjava.web.user;
+ 
+ import org.springframework.stereotype.Controller;
++import org.springframework.ui.ModelMap;
+ import org.springframework.validation.BindingResult;
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.PostMapping;
+@@ -28,7 +29,26 @@
+             super.update(userTo, SecurityUtil.authUserId());
+             SecurityUtil.get().update(userTo);
+             status.setComplete();
+-            return "redirect:meals";
++            return "redirect:/meals";
++        }
++    }
++
++    @GetMapping("/register")
++    public String register(ModelMap model) {
++        model.addAttribute("userTo", new UserTo());
++        model.addAttribute("register", true);
++        return "profile";
++    }
++
++    @PostMapping("/register")
++    public String saveRegister(@Valid UserTo userTo, BindingResult result, SessionStatus status, ModelMap model) {
++        if (result.hasErrors()) {
++            model.addAttribute("register", true);
++            return "profile";
++        } else {
++            super.create(userTo);
++            status.setComplete();
++            return "redirect:/login?message=app.registered&username=" + userTo.getEmail();
+         }
+     }
+ }
+\ No newline at end of file
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1565838667000)
++++ config/messages/app_ru.properties	(date 1565840803435)
+@@ -2,6 +2,8 @@
+ app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
+ app.login=Зайти как
+ app.profile=профиль
++app.register=Регистрация
++app.registered=Вы зарегистрированы. Введите ваш логин/пароль.
+ 
+ user.title=Пользователи
+ user.edit=Редактировать пользователя
+Index: src/main/webapp/WEB-INF/jsp/login.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/login.jsp	(date 1565838667000)
++++ src/main/webapp/WEB-INF/jsp/login.jsp	(date 1565840803497)
+@@ -18,6 +18,7 @@
+         </c:if>
+         <sec:authorize access="isAnonymous()">
+             <div class="pt-4">
++                <a class="btn btn-lg btn-success" href="profile/register"><spring:message code="app.register"/> &raquo;</a>
+                 <button type="submit" class="btn btn-lg btn-primary" onclick="login('user@yandex.ru', 'password')">
+                     <spring:message code="app.login"/> User
+                 </button>
+@@ -26,7 +27,8 @@
+                 </button>
+             </div>
+         </sec:authorize>
+-        <div class="lead py-4">Стек технологий: <a href="http://projects.spring.io/spring-security/">Spring Security</a>,
++        <div class="lead py-4">Стек технологий: <br>
++            <a href="http://projects.spring.io/spring-security/">Spring Security</a>,
+             <a href="https://docs.spring.io/spring/docs/current/spring-framework-reference/html/mvc.html">Spring MVC</a>,
+             <a href="http://projects.spring.io/spring-data-jpa/">Spring Data JPA</a>,
+             <a href="http://spring.io/blog/2014/05/07/preview-spring-security-test-method-security">Spring Security
+@@ -62,10 +64,17 @@
+ </div>
+ <jsp:include page="fragments/footer.jsp"/>
+ <script type="text/javascript">
++    <c:if test="${not empty param.username}">
++    setCredentials("${param.username}", "");
++    </c:if>
++
+     function login(username, password) {
++        setCredentials(username, password);
++        $("#login_form").submit();
++    }
++    function setCredentials(username, password) {
+         $('input[name="username"]').val(username);
+         $('input[name="password"]').val(password);
+-        $("#login_form").submit();
+     }
+ </script>
+ </body>
+Index: src/main/resources/spring/spring-security.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-security.xml	(date 1565838667000)
++++ src/main/resources/spring/spring-security.xml	(date 1565840803479)
+@@ -10,6 +10,7 @@
+     <http pattern="/rest/**" use-expressions="true" name="restSecurityFilterChain" create-session="stateless">
+         <http-basic/>
+         <intercept-url pattern="/rest/admin/**" access="hasRole('ROLE_ADMIN')"/>
++        <intercept-url pattern="/rest/profile/register" access="isAnonymous()"/>
+         <intercept-url pattern="/**" access="isAuthenticated()"/>
+         <csrf disabled="true"/>
+     </http>
+@@ -18,6 +19,7 @@
+ 
+     <http>
+         <intercept-url pattern="/login" access="permitAll()"/>
++        <intercept-url pattern="/profile/register" access="isAnonymous()"/>
+ 
+         <intercept-url pattern="/**/admin/**" access="hasRole('ROLE_ADMIN')"/>
+         <intercept-url pattern="/**" access="isAuthenticated()"/>
+Index: src/main/webapp/WEB-INF/jsp/profile.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/profile.jsp	(date 1565838667000)
++++ src/main/webapp/WEB-INF/jsp/profile.jsp	(date 1565840803504)
+@@ -14,8 +14,8 @@
+         <%--@elvariable id="userTo" type="ru.javawebinar.topjava.to.UserTo"--%>
+         <div class="row">
+             <div class="col-5 offset-3">
+-                <h3>${userTo.name} <spring:message code="app.profile"/></h3>
+-                <form:form class="form-group" modelAttribute="userTo" method="post" action="profile"
++                <h3>${userTo.name} <spring:message code="${register ? 'app.register' : 'app.profile'}"/></h3>
++                <form:form class="form-group" modelAttribute="userTo" method="post" action="${register ? 'profile/register' : 'profile'}"
+                            charset="utf-8" accept-charset="UTF-8">
+ 
+                     <topjava:inputField labelCode="user.name" name="name"/>
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1565838667000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1565840803442)
+@@ -6,6 +6,7 @@
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
+ import ru.javawebinar.topjava.to.UserTo;
++import ru.javawebinar.topjava.util.UserUtil;
+ 
+ import java.util.List;
+ 
+@@ -28,6 +29,10 @@
+         return service.get(id);
+     }
+ 
++    public User create(UserTo userTo) {
++        return create(UserUtil.createNewFromTo(userTo));
++    }
++
+     public User create(User user) {
+         log.info("create {}", user);
+         checkNew(user);
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app.properties	(date 1565838667000)
++++ config/messages/app.properties	(date 1565840803428)
+@@ -2,6 +2,8 @@
+ app.footer=Internship <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> application
+ app.login=Login as
+ app.profile=profile
++app.register=Registration
++app.registered=You are registered. Please Sign in.
+ 
+ user.title=Users
+ user.edit=Edit user
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1565838667000)
++++ src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1565840803487)
+@@ -16,7 +16,7 @@
+     <link rel="shortcut icon" href="resources/images/icon-meal.png">
+ 
+     <%--http://stackoverflow.com/a/24070373/548473--%>
+-    <script type="text/javascript" src="webjars/jquery/3.4.1/jquery.min.js" defer></script>
++    <script type="text/javascript" src="webjars/jquery/3.4.1/jquery.min.js"></script>
+     <script type="text/javascript" src="webjars/bootstrap/4.3.1/js/bootstrap.min.js" defer></script>
+     <script type="text/javascript" src="webjars/datatables/1.10.19/js/jquery.dataTables.min.js" defer></script>
+     <script type="text/javascript" src="webjars/datatables/1.10.19/js/dataTables.bootstrap4.min.js" defer></script>

@@ -1,0 +1,301 @@
+Index: src/main/java/ru/javawebinar/topjava/View.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/View.java	(date 1565724557772)
++++ src/main/java/ru/javawebinar/topjava/View.java	(date 1565724557772)
+@@ -0,0 +1,6 @@
++package ru.javawebinar.topjava;
++
++public class View {
++    public interface JsonREST {}
++    public interface JsonUI {}
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/to/MealTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/to/MealTo.java	(date 1565724387000)
++++ src/main/java/ru/javawebinar/topjava/to/MealTo.java	(date 1565724482656)
+@@ -1,10 +1,17 @@
+ package ru.javawebinar.topjava.to;
+ 
++import com.fasterxml.jackson.annotation.JsonFormat;
++import com.fasterxml.jackson.annotation.JsonGetter;
++import com.fasterxml.jackson.annotation.JsonView;
++import ru.javawebinar.topjava.View;
++import ru.javawebinar.topjava.util.DateTimeUtil;
++
+ import java.time.LocalDateTime;
+ import java.util.Objects;
+ 
+ public class MealTo extends BaseTo {
+ 
++    @JsonView(View.JsonREST.class)
+     private LocalDateTime dateTime;
+ 
+     private String description;
+@@ -57,6 +64,13 @@
+         return Objects.hash(id, dateTime, description, calories, excess);
+     }
+ 
++    @JsonGetter
++    @JsonView(View.JsonUI.class)
++    @JsonFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    public LocalDateTime getDateTimeUI() {
++        return dateTime;
++    }
++
+     @Override
+     public String toString() {
+         return "MealTo{" +
+Index: src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(date 1565724387000)
++++ src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(date 1565724956723)
+@@ -1,10 +1,14 @@
+ package ru.javawebinar.topjava.web.json;
+ 
++import com.fasterxml.jackson.databind.ObjectWriter;
+ import org.junit.jupiter.api.Test;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ 
+ import java.util.List;
+ 
++import static org.hamcrest.CoreMatchers.containsString;
++import static org.hamcrest.MatcherAssert.assertThat;
+ import static ru.javawebinar.topjava.MealTestData.*;
+ 
+ class JsonUtilTest {
+@@ -24,4 +28,11 @@
+         List<Meal> meals = JsonUtil.readValues(json, Meal.class);
+         assertMatch(meals, MEALS);
+     }
++
++    @Test
++    public void testWriteWithView() throws Exception {
++        ObjectWriter uiWriter = JacksonObjectMapper.getMapper().writerWithView(View.JsonUI.class);       String json = JsonUtil.writeValue(ADMIN_MEAL1, uiWriter);
++        System.out.println(json);
++        assertThat(json, containsString("dateTimeUI"));
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(date 1565724387000)
++++ src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(date 1565724557643)
+@@ -1,10 +1,12 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
++import com.fasterxml.jackson.annotation.JsonView;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.validation.BindingResult;
+ import org.springframework.web.bind.annotation.*;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ import ru.javawebinar.topjava.util.ValidationUtil;
+@@ -20,12 +22,14 @@
+ 
+     @Override
+     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
++    @JsonView(View.JsonUI.class)
+     public List<MealTo> getAll() {
+         return super.getAll();
+     }
+ 
+     @Override
+     @GetMapping(value = "/{id}")
++    @JsonView(View.JsonUI.class)
+     public Meal get(@PathVariable int id) {
+         return super.get(id);
+     }
+@@ -53,6 +57,7 @@
+ 
+     @Override
+     @GetMapping(value = "/filter", produces = MediaType.APPLICATION_JSON_VALUE)
++    @JsonView(View.JsonUI.class)
+     public List<MealTo> getBetween(
+             @RequestParam(required = false) LocalDate startDate,
+             @RequestParam(required = false) LocalTime startTime,
+Index: src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1565724387000)
++++ src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1565724483011)
+@@ -2,6 +2,7 @@
+ 
+ import com.fasterxml.jackson.core.JsonProcessingException;
+ import com.fasterxml.jackson.databind.ObjectReader;
++import com.fasterxml.jackson.databind.ObjectWriter;
+ 
+ import java.io.IOException;
+ import java.util.List;
+@@ -34,4 +35,12 @@
+             throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
+         }
+     }
++
++    public static <T> String writeValue(T obj, ObjectWriter ow) {
++        try {
++            return ow.writeValueAsString(obj);
++        } catch (JsonProcessingException e) {
++            throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
++        }
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(date 1565724387000)
++++ src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(date 1565724482957)
+@@ -7,6 +7,7 @@
+ import com.fasterxml.jackson.databind.SerializationFeature;
+ import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
+ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
++import ru.javawebinar.topjava.View;
+ 
+ /**
+  * <p>
+@@ -29,6 +30,9 @@
+         setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.NONE);
+         setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+         setSerializationInclusion(JsonInclude.Include.NON_NULL);
++
++//      https://stackoverflow.com/questions/22875642/jackson-set-default-view
++        setConfig(getSerializationConfig().withView(View.JsonREST.class));
+     }
+ 
+     public static ObjectMapper getMapper() {
+Index: src/main/webapp/resources/js/topjava.meals.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/resources/js/topjava.meals.js	(date 1565724387000)
++++ src/main/webapp/resources/js/topjava.meals.js	(date 1565724557878)
+@@ -19,13 +19,7 @@
+         datatableOpts: {
+             "columns": [
+                 {
+-                    "data": "dateTime",
+-                    "render": function (date, type, row) {
+-                        if (type === 'display') {
+-                            return formatDate(date);
+-                        }
+-                        return date;
+-                    }
++                    "data": "dateTimeUI"
+                 },
+                 {
+                     "data": "description"
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/resources/js/topjava.common.js	(date 1565724387000)
++++ src/main/webapp/resources/js/topjava.common.js	(date 1565724557821)
+@@ -34,18 +34,12 @@
+     $("#modalTitle").html(i18n["editTitle"]);
+     $.get(context.ajaxUrl + id, function (data) {
+         $.each(data, function (key, value) {
+-            form.find("input[name='" + key + "']").val(
+-                key === "dateTime" ? formatDate(value) : value
+-            );
++            form.find("input[name='" + key + "']").val(value);
+         });
+         $('#editRow').modal();
+     });
+ }
+ 
+-function formatDate(date) {
+-    return date.replace('T', ' ').substr(0, 16);
+-}
+-
+ function deleteRow(id) {
+     if (confirm(i18n['common.confirm'])) {
+         $.ajax({
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1565724387000)
++++ src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1565724482554)
+@@ -1,9 +1,13 @@
+ package ru.javawebinar.topjava.model;
+ 
++import com.fasterxml.jackson.annotation.JsonFormat;
++import com.fasterxml.jackson.annotation.JsonGetter;
++import com.fasterxml.jackson.annotation.JsonView;
+ import org.hibernate.annotations.OnDelete;
+ import org.hibernate.annotations.OnDeleteAction;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.format.annotation.DateTimeFormat;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.util.DateTimeUtil;
+ 
+ import javax.persistence.*;
+@@ -32,7 +36,7 @@
+ 
+     @Column(name = "date_time", nullable = false)
+     @NotNull
+-    @DateTimeFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    @JsonView(View.JsonREST.class)
+     private LocalDateTime dateTime;
+ 
+     @Column(name = "description", nullable = false)
+@@ -104,6 +108,19 @@
+         this.user = user;
+     }
+ 
++
++    @JsonGetter
++    @JsonView(View.JsonUI.class)
++    @JsonFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    public LocalDateTime getDateTimeUI() {
++        return dateTime;
++    }
++
++    @DateTimeFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    public void setDateTimeUI(LocalDateTime dateTime) {
++        this.dateTime = dateTime;
++    }
++
+     @Override
+     public String toString() {
+         return "Meal{" +
+Index: src/main/webapp/WEB-INF/jsp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/meals.jsp	(date 1565724387000)
++++ src/main/webapp/WEB-INF/jsp/meals.jsp	(date 1565724557938)
+@@ -79,7 +79,7 @@
+ 
+                     <div class="form-group">
+                         <label for="dateTime" class="col-form-label"><spring:message code="meal.dateTime"/></label>
+-                        <input class="form-control" id="dateTime" name="dateTime"
++                        <input class="form-control" id="dateTime" name="dateTimeUI"
+                                placeholder="<spring:message code="meal.dateTime"/>">
+                     </div>
+ 

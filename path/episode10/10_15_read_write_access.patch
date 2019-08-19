@@ -1,0 +1,148 @@
+Index: src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(date 1565844244000)
++++ src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(date 1565844376781)
+@@ -1,10 +1,16 @@
+ package ru.javawebinar.topjava.web.json;
+ 
+ import org.junit.jupiter.api.Test;
++import ru.javawebinar.topjava.UserTestData;
+ import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.model.User;
+ 
+ import java.util.List;
+ 
++import static org.hamcrest.CoreMatchers.containsString;
++import static org.hamcrest.CoreMatchers.not;
++import static org.hamcrest.MatcherAssert.assertThat;
++import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static ru.javawebinar.topjava.MealTestData.*;
+ 
+ class JsonUtilTest {
+@@ -24,4 +30,15 @@
+         List<Meal> meals = JsonUtil.readValues(json, Meal.class);
+         assertMatch(meals, MEALS);
+     }
++
++    @Test
++    void testWriteOnlyAccess() throws Exception {
++        String json = JsonUtil.writeValue(UserTestData.USER);
++        System.out.println(json);
++        assertThat(json, not(containsString("password")));
++        String jsonWithPass = UserTestData.jsonWithPassword(UserTestData.USER, "newPass");
++        System.out.println(jsonWithPass);
++        User user = JsonUtil.readValue(jsonWithPass, User.class);
++        assertEquals(user.getPassword(), "newPass");
++    }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1565844244000)
++++ src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1565844376795)
+@@ -3,6 +3,7 @@
+ import org.springframework.test.web.servlet.ResultMatcher;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
+ import java.util.List;
+ 
+@@ -37,4 +38,8 @@
+     public static ResultMatcher contentJson(User expected) {
+         return result -> assertMatch(readFromJsonMvcResult(result, User.class), expected);
+     }
++
++    public static String jsonWithPassword(User user, String passw) {
++        return JsonUtil.writeAdditionProps(user, "password", passw);
++    }
+ }
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1565844244000)
++++ src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1565844376787)
+@@ -101,7 +101,7 @@
+         ResultActions action = mockMvc.perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .with(userHttpBasic(ADMIN))
+-                .content(JsonUtil.writeValue(expected)))
++                .content(jsonWithPassword(expected, "newPass")))
+                 .andExpect(status().isCreated());
+ 
+         User returned = readFromJson(action, User.class);
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/User.java	(date 1565844244000)
++++ src/main/java/ru/javawebinar/topjava/model/User.java	(date 1565844376770)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.model;
+ 
++import com.fasterxml.jackson.annotation.JsonProperty;
+ import org.hibernate.annotations.BatchSize;
+ import org.hibernate.annotations.Cache;
+ import org.hibernate.annotations.CacheConcurrencyStrategy;
+@@ -38,6 +39,8 @@
+     @Column(name = "password", nullable = false)
+     @NotBlank
+     @Size(min = 5, max = 100)
++    // https://stackoverflow.com/a/12505165/548473
++    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+     private String password;
+ 
+     @Column(name = "enabled", nullable = false, columnDefinition = "bool default true")
+@@ -45,6 +48,7 @@
+ 
+     @Column(name = "registered", nullable = false, columnDefinition = "timestamp default now()")
+     @NotNull
++    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+     private Date registered = new Date();
+ 
+     @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+Index: src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1565844244000)
++++ src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1565844376776)
+@@ -1,10 +1,12 @@
+ package ru.javawebinar.topjava.web.json;
+ 
+ import com.fasterxml.jackson.core.JsonProcessingException;
++import com.fasterxml.jackson.core.type.TypeReference;
+ import com.fasterxml.jackson.databind.ObjectReader;
+ 
+ import java.io.IOException;
+ import java.util.List;
++import java.util.Map;
+ 
+ import static ru.javawebinar.topjava.web.json.JacksonObjectMapper.getMapper;
+ 
+@@ -34,4 +36,14 @@
+             throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
+         }
+     }
++
++    public static <T> String writeAdditionProps(T obj, String addName, Object addValue) {
++        return writeAdditionProps(obj, Map.of(addName, addValue));
++    }
++
++    public static <T> String writeAdditionProps(T obj, Map<String, Object> addProps) {
++        Map<String, Object> map = getMapper().convertValue(obj, new TypeReference<Map<String, Object>>() {});
++        map.putAll(addProps);
++        return writeValue(map);
++    }
+ }
+\ No newline at end of file
