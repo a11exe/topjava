@@ -9,6 +9,7 @@ import ru.javawebinar.topjava.util.exception.NotFoundException;
 import javax.validation.*;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 public class ValidationUtil {
 
@@ -90,5 +91,9 @@ public class ValidationUtil {
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);
         }
+    }
+
+    public static String bindingResultErrorsMessage(BindingResult result) {
+        return result.getAllErrors().stream().map(s->s.getObjectName()+": "+s.getDefaultMessage()).collect(Collectors.joining(System.lineSeparator()));
     }
 }
