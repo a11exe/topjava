@@ -1,5 +1,6 @@
 package ru.javawebinar.topjava.web.user;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/ajax/admin/users")
 public class AdminUIController extends AbstractUserController {
+
+    @Autowired
+    UserFormValidator userFormValidator;
 
     @Override
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,6 +43,7 @@ public class AdminUIController extends AbstractUserController {
 
     @PostMapping
     public void createOrUpdate(@Valid UserTo userTo, BindingResult result) {
+        userFormValidator.validate(userTo, result);
         if (result.hasErrors()) {
             throw new IllegalRequestDataException(ValidationUtil.bindingResultErrorsMessage(result));
         }
