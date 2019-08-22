@@ -1,0 +1,201 @@
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app.properties	(date 1566170441000)
++++ config/messages/app.properties	(date 1566202822273)
+@@ -38,4 +38,6 @@
+ common.appError=Application error
+ common.confirm=Are you sure?
+ common.save=Save
+-common.cancel=Cancel
+\ No newline at end of file
++common.cancel=Cancel
++
++exception.user.duplicateEmail=User with this email already exists
+\ No newline at end of file
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1566170441000)
++++ config/messages/app_ru.properties	(date 1566202822279)
+@@ -38,4 +38,6 @@
+ common.appError=Ошибка приложения
+ common.confirm=Вы уверены?
+ common.save=Сохранить
+-common.cancel=Отменить
+\ No newline at end of file
++common.cancel=Отменить
++
++exception.user.duplicateEmail=Пользователь с такой почтой уже есть в приложении
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1566170441000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1566202822289)
+@@ -16,6 +16,8 @@
+ public abstract class AbstractUserController {
+     protected final Logger log = LoggerFactory.getLogger(getClass());
+ 
++    public static final String EXCEPTION_DUPLICATE_EMAIL = "exception.user.duplicateEmail";
++
+     @Autowired
+     protected UserService service;
+ 
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1566170441000)
++++ src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1566208474279)
+@@ -57,6 +57,10 @@
+         return result;
+     }
+ 
++    public static String getMessage(Throwable e) {
++        return e.getLocalizedMessage() != null ? e.getLocalizedMessage() : e.getClass().getName();
++    }
++
+     private static final Validator validator;
+ 
+     static {
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1566170441000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1566203331492)
+@@ -1,10 +1,15 @@
+ package ru.javawebinar.topjava.web.user;
+ 
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.context.MessageSource;
++import org.springframework.context.i18n.LocaleContextHolder;
++import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
++import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+ 
+ import javax.validation.Valid;
+ import java.util.List;
+@@ -13,6 +18,9 @@
+ @RequestMapping("/ajax/admin/users")
+ public class AdminUIController extends AbstractUserController {
+ 
++    @Autowired
++    private MessageSource messageSource;
++
+     @Override
+     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+     public List<User> getAll() {
+@@ -34,10 +42,14 @@
+ 
+     @PostMapping
+     public void createOrUpdate(@Valid UserTo userTo) {
+-        if (userTo.isNew()) {
+-            super.create(userTo);
+-        } else {
+-            super.update(userTo, userTo.id());
++        try {
++            if (userTo.isNew()) {
++                super.create(userTo);
++            } else {
++                super.update(userTo, userTo.id());
++            }
++        } catch (DataIntegrityViolationException e) {
++            throw new IllegalRequestDataException(messageSource.getMessage(EXCEPTION_DUPLICATE_EMAIL, null, LocaleContextHolder.getLocale()));
+         }
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1566170441000)
++++ src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1566208522691)
+@@ -81,6 +81,6 @@
+             log.warn("{} at request  {}: {}", errorType, req.getRequestURL(), rootCause.toString());
+         }
+         return new ErrorInfo(req.getRequestURL(), errorType,
+-                details.length != 0 ? details : new String[]{rootCause.toString()});
++                details.length != 0 ? details : new String[]{ValidationUtil.getMessage(rootCause)});
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1566170441000)
++++ src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1566209309990)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.web.user;
+ 
++import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.ModelMap;
+ import org.springframework.validation.BindingResult;
+@@ -25,11 +26,15 @@
+     public String updateProfile(@Valid UserTo userTo, BindingResult result, SessionStatus status) {
+         if (result.hasErrors()) {
+             return "profile";
+-        } else {
++        }
++        try {
+             super.update(userTo, SecurityUtil.authUserId());
+             SecurityUtil.get().update(userTo);
+             status.setComplete();
+             return "redirect:/meals";
++        } catch (DataIntegrityViolationException ex) {
++            result.rejectValue("email", EXCEPTION_DUPLICATE_EMAIL);
++            return "profile";
+         }
+     }
+ 
+@@ -45,10 +50,15 @@
+         if (result.hasErrors()) {
+             model.addAttribute("register", true);
+             return "profile";
+-        } else {
++        }
++        try {
+             super.create(userTo);
+             status.setComplete();
+             return "redirect:/login?message=app.registered&username=" + userTo.getEmail();
++        } catch (DataIntegrityViolationException ex) {
++            result.rejectValue("email", EXCEPTION_DUPLICATE_EMAIL);
++            model.addAttribute("register", true);
++            return "profile";
+         }
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalControllerExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/GlobalControllerExceptionHandler.java	(date 1566170441000)
++++ src/main/java/ru/javawebinar/topjava/web/GlobalControllerExceptionHandler.java	(date 1566208522681)
+@@ -20,7 +20,7 @@
+         Throwable rootCause = ValidationUtil.getRootCause(e);
+         ModelAndView mav = new ModelAndView("exception/exception");
+         mav.addObject("exception", rootCause);
+-        mav.addObject("message", rootCause.toString());
++        mav.addObject("message", ValidationUtil.getMessage(rootCause));
+ 
+         // Interceptor is not invoked, put userTo
+         AuthorizedUser authorizedUser = SecurityUtil.safeGet();

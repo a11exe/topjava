@@ -1,0 +1,466 @@
+Index: src/test/java/ru/javawebinar/topjava/web/user/HerokuRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/user/HerokuRestControllerTest.java	(date 1566215750225)
++++ src/test/java/ru/javawebinar/topjava/web/user/HerokuRestControllerTest.java	(date 1566215750225)
+@@ -0,0 +1,43 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.http.MediaType;
++import org.springframework.test.context.ActiveProfiles;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import ru.javawebinar.topjava.UserTestData;
++import ru.javawebinar.topjava.util.exception.ErrorType;
++import ru.javawebinar.topjava.web.AbstractControllerTest;
++
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.Profiles.HEROKU;
++import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
++import static ru.javawebinar.topjava.UserTestData.*;
++import static ru.javawebinar.topjava.util.exception.ModificationRestrictionException.EXCEPTION_MODIFICATION_RESTRICTION;
++
++@ActiveProfiles({HEROKU})
++public class HerokuRestControllerTest extends AbstractControllerTest {
++
++    private static final String REST_URL = AdminRestController.REST_URL + '/';
++
++    @Test
++    void delete() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID)
++                .with(userHttpBasic(ADMIN)))
++                .andDo(print())
++                .andExpect(errorType(ErrorType.APP_ERROR))
++                .andExpect(detailMessage(EXCEPTION_MODIFICATION_RESTRICTION))
++                .andExpect(status().isUnavailableForLegalReasons());
++    }
++
++    @Test
++    void update() throws Exception {
++        mockMvc.perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(ADMIN))
++                .content(UserTestData.jsonWithPassword(USER, "password")))
++                .andExpect(errorType(ErrorType.APP_ERROR))
++                .andExpect(detailMessage(EXCEPTION_MODIFICATION_RESTRICTION))
++                .andExpect(status().isUnavailableForLegalReasons());
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/exception/ModificationRestrictionException.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/exception/ModificationRestrictionException.java	(date 1566215395389)
++++ src/main/java/ru/javawebinar/topjava/util/exception/ModificationRestrictionException.java	(date 1566215395389)
+@@ -0,0 +1,11 @@
++package ru.javawebinar.topjava.util.exception;
++
++import org.springframework.http.HttpStatus;
++
++public class ModificationRestrictionException extends ApplicationException {
++    public static final String EXCEPTION_MODIFICATION_RESTRICTION = "exception.user.modificationRestriction";
++
++    public ModificationRestrictionException() {
++        super(EXCEPTION_MODIFICATION_RESTRICTION, HttpStatus.UNAVAILABLE_FOR_LEGAL_REASONS);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/exception/ApplicationException.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/exception/ApplicationException.java	(date 1566215611134)
++++ src/main/java/ru/javawebinar/topjava/util/exception/ApplicationException.java	(date 1566215611134)
+@@ -0,0 +1,41 @@
++package ru.javawebinar.topjava.util.exception;
++
++import org.springframework.http.HttpStatus;
++
++import java.util.Arrays;
++
++public class ApplicationException extends RuntimeException {
++
++    private final ErrorType type;
++    private final String msgCode;
++    private final HttpStatus httpStatus;
++    private final String[] args;
++
++    public ApplicationException(String msgCode, HttpStatus httpStatus) {
++        this(ErrorType.APP_ERROR, msgCode, httpStatus);
++    }
++
++    public ApplicationException(ErrorType type, String msgCode, HttpStatus httpStatus, String... args) {
++        super(String.format("type=%s, msgCode=%s, args=%s", type, msgCode, Arrays.toString(args)));
++        this.type = type;
++        this.msgCode = msgCode;
++        this.httpStatus = httpStatus;
++        this.args = args;
++    }
++
++    public ErrorType getType() {
++        return type;
++    }
++
++    public String getMsgCode() {
++        return msgCode;
++    }
++
++    public HttpStatus getHttpStatus() {
++        return httpStatus;
++    }
++
++    public String[] getArgs() {
++        return args;
++    }
++}
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app.properties	(date 1566215298000)
++++ config/messages/app.properties	(date 1566215395374)
+@@ -44,7 +44,9 @@
+ common.cancel=Cancel
+ common.search=Search
+ 
++exception.common.notFound=Not found entity with {0}
+ exception.user.duplicateEmail=User with this email already exists
++exception.user.modificationRestriction=Admin/User modification is forbidden
+ exception.meal.duplicateDateTime=You already have meal with this date/time
+ 
+ error.appError=Application error
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1566215298000)
++++ config/messages/app_ru.properties	(date 1566215395379)
+@@ -46,7 +46,9 @@
+ common.cancel=Отменить
+ common.search=Искать
+ 
++exception.common.notFound=Не найдена запись с {0}
+ exception.user.duplicateEmail=Пользователь с такой почтой уже есть в приложении
++exception.user.modificationRestriction=Модификация Admin/User запрещена
+ exception.meal.duplicateDateTime=У вас уже есть еда с такой датой/временем
+ 
+ error.appError=Ошибка приложения
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1566215298000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1566215835095)
+@@ -3,12 +3,16 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.core.env.Environment;
+ import org.springframework.web.bind.WebDataBinder;
+ import org.springframework.web.bind.annotation.InitBinder;
++import ru.javawebinar.topjava.Profiles;
++import ru.javawebinar.topjava.model.AbstractBaseEntity;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
+ import ru.javawebinar.topjava.to.UserTo;
+ import ru.javawebinar.topjava.util.UserUtil;
++import ru.javawebinar.topjava.util.exception.ModificationRestrictionException;
+ 
+ import java.util.List;
+ 
+@@ -24,6 +28,14 @@
+     @Autowired
+     private UniqueMailValidator emailValidator;
+ 
++    private boolean modificationRestriction;
++
++    @Autowired
++    @SuppressWarnings("deprecation")
++    public void setEnvironment(Environment environment) {
++        modificationRestriction = environment.acceptsProfiles(Profiles.HEROKU);
++    }
++
+     @InitBinder
+     protected void initBinder(WebDataBinder binder) {
+         binder.addValidators(emailValidator);
+@@ -51,23 +63,33 @@
+ 
+     public void delete(int id) {
+         log.info("delete {}", id);
++        checkModificationAllowed(id);
+         service.delete(id);
+     }
+ 
+     public void update(User user, int id) {
+         log.info("update {} with id={}", user, id);
+         assureIdConsistent(user, id);
++        checkModificationAllowed(id);
+         service.update(user);
+     }
+ 
+     public void update(UserTo userTo, int id) {
+         log.info("update {} with id={}", userTo, id);
+         assureIdConsistent(userTo, id);
++        checkModificationAllowed(id);
+         service.update(userTo);
+     }
+ 
+     public void enable(int id, boolean enabled) {
+         log.info(enabled ? "enable {}" : "disable {}", id);
++        checkModificationAllowed(id);
+         service.enable(id, enabled);
+     }
++
++    private void checkModificationAllowed(int id) {
++        if (modificationRestriction && id < AbstractBaseEntity.START_SEQ + 2) {
++            throw new ModificationRestrictionException();
++        }
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1566215298000)
++++ src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1566215395400)
+@@ -28,9 +28,9 @@
+         return object;
+     }
+ 
+-    public static void checkNotFound(boolean found, String msg) {
++    public static void checkNotFound(boolean found, String arg) {
+         if (!found) {
+-            throw new NotFoundException("Not found entity with " + msg);
++            throw new NotFoundException(arg);
+         }
+     }
+ 
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-db.xml	(date 1566215298000)
++++ src/main/resources/spring/spring-db.xml	(date 1566215406240)
+@@ -34,7 +34,7 @@
+               p:password="${database.password}"/>
+     </beans>
+ 
+-    <beans profile="postgres">
++    <beans profile="postgres, heroku">
+         <!--
+             For postgres driver logging
+             It uses java.util.logging and logged via jul-to-slf4j bridge
+Index: src/main/java/ru/javawebinar/topjava/Profiles.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/Profiles.java	(date 1566215298000)
++++ src/main/java/ru/javawebinar/topjava/Profiles.java	(date 1566215406233)
+@@ -10,7 +10,8 @@
+ 
+     public static final String
+             POSTGRES_DB = "postgres",
+-            HSQL_DB = "hsqldb";
++            HSQL_DB = "hsqldb",
++            HEROKU = "heroku";
+ 
+     //  Get DB profile depending of DB driver in classpath
+     public static String getActiveDbProfile() {
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(date 1566215298000)
++++ src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(date 1566215406245)
+@@ -3,6 +3,7 @@
+ import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.util.exception.ErrorType;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import javax.validation.ConstraintViolationException;
+@@ -10,8 +11,8 @@
+ import java.time.Month;
+ 
+ import static java.time.LocalDateTime.of;
+-import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
+ import static ru.javawebinar.topjava.MealTestData.*;
+ import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
+ import static ru.javawebinar.topjava.UserTestData.USER_ID;
+@@ -76,7 +77,10 @@
+     @Test
+     void updateNotFound() throws Exception {
+         NotFoundException e = assertThrows(NotFoundException.class, () -> service.update(MEAL1, ADMIN_ID));
+-        assertEquals(e.getMessage(), "Not found entity with id=" + MEAL1_ID);
++        String msg = e.getMessage();
++        assertTrue(msg.contains(ErrorType.DATA_NOT_FOUND.name()));
++        assertTrue(msg.contains(NotFoundException.NOT_FOUND_EXCEPTION));
++        assertTrue(msg.contains(String.valueOf(MEAL1_ID)));
+     }
+ 
+     @Test
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1566215298000)
++++ src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1566215406213)
+@@ -7,6 +7,7 @@
+ import org.springframework.core.annotation.Order;
+ import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.http.HttpStatus;
++import org.springframework.http.ResponseEntity;
+ import org.springframework.http.converter.HttpMessageNotReadableException;
+ import org.springframework.validation.BindException;
+ import org.springframework.validation.BindingResult;
+@@ -17,10 +18,10 @@
+ import org.springframework.web.bind.annotation.RestControllerAdvice;
+ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+ import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.exception.ApplicationException;
+ import ru.javawebinar.topjava.util.exception.ErrorInfo;
+ import ru.javawebinar.topjava.util.exception.ErrorType;
+ import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+-import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import javax.servlet.http.HttpServletRequest;
+ import java.util.Map;
+@@ -43,11 +44,10 @@
+     @Autowired
+     private MessageUtil messageUtil;
+ 
+-    //  http://stackoverflow.com/a/22358422/548473
+-    @ResponseStatus(value = HttpStatus.UNPROCESSABLE_ENTITY)
+-    @ExceptionHandler(NotFoundException.class)
+-    public ErrorInfo handleError(HttpServletRequest req, NotFoundException e) {
+-        return logAndGetErrorInfo(req, e, false, DATA_NOT_FOUND);
++    @ExceptionHandler(ApplicationException.class)
++    public ResponseEntity<ErrorInfo> applicationError(HttpServletRequest req, ApplicationException appEx) {
++        ErrorInfo errorInfo = logAndGetErrorInfo(req, appEx, false, appEx.getType(), messageUtil.getMessage(appEx));
++        return ResponseEntity.status(appEx.getHttpStatus()).body(errorInfo);
+     }
+ 
+     @ResponseStatus(value = HttpStatus.CONFLICT)  // 409
+Index: src/main/java/ru/javawebinar/topjava/web/MessageUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/MessageUtil.java	(date 1566215298000)
++++ src/main/java/ru/javawebinar/topjava/web/MessageUtil.java	(date 1566215406226)
+@@ -5,6 +5,7 @@
+ import org.springframework.context.MessageSourceResolvable;
+ import org.springframework.context.i18n.LocaleContextHolder;
+ import org.springframework.stereotype.Component;
++import ru.javawebinar.topjava.util.exception.ApplicationException;
+ 
+ import java.util.Locale;
+ 
+@@ -19,12 +20,16 @@
+         this.messageSource = messageSource;
+     }
+ 
+-    public String getMessage(String code, Locale locale) {
+-        return messageSource.getMessage(code, null, locale);
++    public String getMessage(String code, Locale locale, String... args) {
++        return messageSource.getMessage(code, args, locale);
++    }
++
++    public String getMessage(String code, String... args) {
++        return getMessage(code, LocaleContextHolder.getLocale(), args);
+     }
+ 
+-    public String getMessage(String code) {
+-        return getMessage(code, LocaleContextHolder.getLocale());
++    public String getMessage(ApplicationException appEx) {
++        return getMessage(appEx.getMsgCode(), appEx.getArgs());
+     }
+ 
+     public String getMessage(MessageSourceResolvable resolvable) {
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalControllerExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/GlobalControllerExceptionHandler.java	(date 1566215298000)
++++ src/main/java/ru/javawebinar/topjava/web/GlobalControllerExceptionHandler.java	(date 1566215406220)
+@@ -8,6 +8,7 @@
+ import org.springframework.web.servlet.ModelAndView;
+ import org.springframework.web.servlet.NoHandlerFoundException;
+ import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.exception.ApplicationException;
+ import ru.javawebinar.topjava.util.exception.ErrorType;
+ 
+ import javax.servlet.http.HttpServletRequest;
+@@ -21,21 +22,26 @@
+ 
+     @ExceptionHandler(NoHandlerFoundException.class)
+     public ModelAndView wrongRequest(HttpServletRequest req, NoHandlerFoundException e) throws Exception {
+-        return logAndGetExceptionView(req, e, false, ErrorType.WRONG_REQUEST);
++        return logAndGetExceptionView(req, e, false, ErrorType.WRONG_REQUEST, null);
++    }
++
++    @ExceptionHandler(ApplicationException.class)
++    public ModelAndView applicationErrorHandler(HttpServletRequest req, ApplicationException appEx) throws Exception {
++        return logAndGetExceptionView(req, appEx, true, appEx.getType(), messageUtil.getMessage(appEx));
+     }
+ 
+     @ExceptionHandler(Exception.class)
+     public ModelAndView defaultErrorHandler(HttpServletRequest req, Exception e) throws Exception {
+-        return logAndGetExceptionView(req, e, true, ErrorType.APP_ERROR);
++        return logAndGetExceptionView(req, e, true, ErrorType.APP_ERROR, null);
+     }
+ 
+-    private ModelAndView logAndGetExceptionView(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType) {
++    private ModelAndView logAndGetExceptionView(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType, String msg) {
+         Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, logException, errorType);
+ 
+         ModelAndView mav = new ModelAndView("exception/exception");
+         mav.addObject("typeMessage", messageUtil.getMessage(errorType.getErrorCode()));
+         mav.addObject("exception", rootCause);
+-        mav.addObject("message", ValidationUtil.getMessage(rootCause));
++        mav.addObject("message", msg != null ? msg : ValidationUtil.getMessage(rootCause));
+         return mav;
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java	(date 1566215298000)
++++ src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java	(date 1566215395395)
+@@ -1,7 +1,11 @@
+ package ru.javawebinar.topjava.util.exception;
++import org.springframework.http.HttpStatus;
+ 
+-public class NotFoundException extends RuntimeException {
+-    public NotFoundException(String message) {
+-        super(message);
++public class NotFoundException extends ApplicationException {
++    public static final String NOT_FOUND_EXCEPTION = "exception.common.notFound";
++
++    //  http://stackoverflow.com/a/22358422/548473
++    public NotFoundException(String arg) {
++        super(ErrorType.DATA_NOT_FOUND, NOT_FOUND_EXCEPTION, HttpStatus.UNPROCESSABLE_ENTITY, arg);
+     }
+ }
+\ No newline at end of file

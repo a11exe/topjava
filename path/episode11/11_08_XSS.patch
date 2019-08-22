@@ -1,0 +1,320 @@
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app.properties	(date 1566213347000)
++++ config/messages/app.properties	(date 1566213362079)
+@@ -58,4 +58,5 @@
+ Email= Invalid format of "{0}"
+ Range="{0}" must be between {2} and {1}
+ Length="{0}" length must be between {2} and {1}
+-Size="{0}" size must be between {2} and {1}
+\ No newline at end of file
++Size="{0}" size must be between {2} and {1}
++SafeHtml="{0}" may has unsafe html content
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(date 1566213362124)
+@@ -2,11 +2,12 @@
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ 
+-import javax.validation.Valid;
+ import java.time.LocalDate;
+ import java.time.LocalTime;
+ import java.util.List;
+@@ -36,7 +37,7 @@
+ 
+     @PostMapping
+     @ResponseStatus(value = HttpStatus.NO_CONTENT)
+-    public void createOrUpdate(@Valid Meal meal) {
++    public void createOrUpdate(@Validated(View.Web.class) Meal meal) {
+         if (meal.isNew()) {
+             super.create(meal);
+         } else {
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1566213347000)
++++ config/messages/app_ru.properties	(date 1566213362083)
+@@ -60,4 +60,5 @@
+ Email=Неверный формат поля "{0}"
+ Range=Поле "{0}" должно быть между {2} и {1}
+ Length=Длинна поля "{0}" должена быть между {2} и {1}
+-Size=Размер поля "{0}" должен быть между {2} и {1}
+\ No newline at end of file
++Size=Размер поля "{0}" должен быть между {2} и {1}
++SafeHtml=Поле "{0}" может содержать небезопасный html контент
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(date 1566213362131)
+@@ -3,11 +3,12 @@
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.User;
+ 
+-import javax.validation.Valid;
+ import java.net.URI;
+ import java.util.List;
+ 
+@@ -30,7 +31,7 @@
+     }
+ 
+     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+-    public ResponseEntity<User> createWithLocation(@Valid @RequestBody User user) {
++    public ResponseEntity<User> createWithLocation(@Validated(View.Web.class) @RequestBody User user) {
+         User created = super.create(user);
+         URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
+                 .path(REST_URL + "/{id}")
+@@ -48,7 +49,7 @@
+     @Override
+     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(value = HttpStatus.NO_CONTENT)
+-    public void update(@Valid @RequestBody User user, @PathVariable int id) {
++    public void update(@Validated(View.Web.class) @RequestBody User user, @PathVariable int id) {
+         super.update(user, id);
+     }
+ 
+Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1566213347000)
++++ src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1566213572390)
+@@ -13,6 +13,8 @@
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
++import java.time.LocalDateTime;
++
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+@@ -184,4 +186,17 @@
+                 .andExpect(errorType(VALIDATION_ERROR))
+                 .andExpect(detailMessage(EXCEPTION_DUPLICATE_DATETIME));
+     }
++
++    @Test
++    void updateHtmlUnsafe() throws Exception {
++        Meal invalid = new Meal(MEAL1_ID, LocalDateTime.now(), "<script>alert(123)</script>", 200);
++        mockMvc.perform(MockMvcRequestBuilders.put(REST_URL + MEAL1_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid))
++                .with(userHttpBasic(USER)))
++                .andDo(print())
++                .andExpect(status().isUnprocessableEntity())
++                .andExpect(errorType(VALIDATION_ERROR))
++                .andDo(print());
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/User.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/model/User.java	(date 1566213362104)
+@@ -5,8 +5,10 @@
+ import org.hibernate.annotations.Cache;
+ import org.hibernate.annotations.CacheConcurrencyStrategy;
+ import org.hibernate.validator.constraints.Range;
++import org.hibernate.validator.constraints.SafeHtml;
+ import org.springframework.util.CollectionUtils;
+ import ru.javawebinar.topjava.HasEmail;
++import ru.javawebinar.topjava.View;
+ 
+ import javax.persistence.*;
+ import javax.validation.constraints.Email;
+@@ -35,6 +37,7 @@
+     @Email
+     @NotBlank
+     @Size(max = 100)
++    @SafeHtml(groups = {View.Web.class})  // https://stackoverflow.com/questions/17480809
+     private String email;
+ 
+     @Column(name = "password", nullable = false)
+Index: src/main/java/ru/javawebinar/topjava/View.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/View.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/View.java	(date 1566213362137)
+@@ -3,5 +3,9 @@
+ import javax.validation.groups.Default;
+ 
+ public class View {
++    // Validate only form UI/REST
++    public interface Web extends Default {}
++
++    // Validate only when DB save/update
+     public interface Persist extends Default {}
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1566213362117)
+@@ -3,12 +3,13 @@
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ 
+-import javax.validation.Valid;
+ import java.net.URI;
+ import java.time.LocalDate;
+ import java.time.LocalTime;
+@@ -41,12 +42,12 @@
+     @Override
+     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(value = HttpStatus.NO_CONTENT)
+-    public void update(@Valid @RequestBody Meal meal, @PathVariable int id) {
++    public void update(@Validated(View.Web.class) @RequestBody Meal meal, @PathVariable int id) {
+         super.update(meal, id);
+     }
+ 
+     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+-    public ResponseEntity<Meal> createWithLocation(@Valid @RequestBody Meal meal) {
++    public ResponseEntity<Meal> createWithLocation(@Validated(View.Web.class) @RequestBody Meal meal) {
+         Meal created = super.create(meal);
+ 
+         URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java	(date 1566213362089)
+@@ -1,5 +1,8 @@
+ package ru.javawebinar.topjava.model;
+ 
++import org.hibernate.validator.constraints.SafeHtml;
++import ru.javawebinar.topjava.View;
++
+ import javax.persistence.Column;
+ import javax.persistence.MappedSuperclass;
+ import javax.validation.constraints.NotBlank;
+@@ -12,6 +15,7 @@
+     @NotBlank
+     @Size(min = 2, max = 100)
+     @Column(name = "name", nullable = false)
++    @SafeHtml(groups = {View.Web.class})
+     protected String name;
+ 
+     protected AbstractNamedEntity() {
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1566213362097)
+@@ -3,6 +3,7 @@
+ import org.hibernate.annotations.OnDelete;
+ import org.hibernate.annotations.OnDeleteAction;
+ import org.hibernate.validator.constraints.Range;
++import org.hibernate.validator.constraints.SafeHtml;
+ import org.springframework.format.annotation.DateTimeFormat;
+ import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.util.DateTimeUtil;
+@@ -39,6 +40,7 @@
+     @Column(name = "description", nullable = false)
+     @NotBlank
+     @Size(min = 2, max = 120)
++    @SafeHtml(groups = {View.Web.class})
+     private String description;
+ 
+     @Column(name = "calories", nullable = false)
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1566213347000)
++++ pom.xml	(date 1566213591033)
+@@ -36,6 +36,7 @@
+         <!-- Hibernate -->
+         <hibernate.version>5.4.3.Final</hibernate.version>
+         <hibernate-validator.version>6.0.17.Final</hibernate-validator.version>
++        <jsoup.version>1.12.1</jsoup.version>
+         <javax-el.version>3.0.1-b11</javax-el.version>
+ 
+         <!--Tools-->
+@@ -177,6 +178,11 @@
+             <groupId>org.hibernate.validator</groupId>
+             <artifactId>hibernate-validator</artifactId>
+             <version>${hibernate-validator.version}</version>
++        </dependency>
++        <dependency>
++            <groupId>org.jsoup</groupId>
++            <artifactId>jsoup</artifactId>
++            <version>${jsoup.version}</version>
+         </dependency>
+         <dependency>
+             <groupId>org.hibernate</groupId>
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1566213347000)
++++ src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1566213663182)
+@@ -1,6 +1,7 @@
+ package ru.javawebinar.topjava.to;
+ 
+ import org.hibernate.validator.constraints.Range;
++import org.hibernate.validator.constraints.SafeHtml;
+ import ru.javawebinar.topjava.HasEmail;
+ import ru.javawebinar.topjava.util.UserUtil;
+ 
+@@ -15,11 +16,13 @@
+ 
+     @NotBlank
+     @Size(min = 2, max = 100)
++    @SafeHtml
+     private String name;
+ 
+     @Email
+     @NotBlank
+     @Size(max = 100)
++    @SafeHtml // https://stackoverflow.com/questions/17480809
+     private String email;
+ 
+     @NotBlank
